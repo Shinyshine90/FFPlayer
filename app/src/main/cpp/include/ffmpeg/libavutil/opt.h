@@ -153,7 +153,7 @@
  *      test_struct (again, proper setup as described above needs to be done on
  *      child_struct right after it is created).
  *
- *      From the above example it might not be clearBuffer why both child_next()
+ *      From the above example it might not be clear why both child_next()
  *      and child_class_next() are needed. The distinction is that child_next()
  *      iterates over actually existing objects, while child_class_next()
  *      iterates over all possible child classes. E.g. if an AVCodecContext

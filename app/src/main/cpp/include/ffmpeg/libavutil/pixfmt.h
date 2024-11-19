@@ -54,7 +54,7 @@
  * also endian-specific). Note also that the individual RGB32 palette
  * components stored in AVFrame.data[1] should be in the range 0..255.
  * This is important as many custom PAL8 video codecs that were designed
- * to runInternal on the IBM VGA graphics adapter use 6-bit palette components.
+ * to run on the IBM VGA graphics adapter use 6-bit palette components.
  *
  * @par
  * For all the 8 bits per pixel formats, an RGB32 palette is in data[1] like

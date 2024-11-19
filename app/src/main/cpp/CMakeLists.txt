@@ -15,13 +15,16 @@ set(CMAKE_C_STANDARD 99)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(FFMPEG-LIBS
+set(EXTERNAL-LIBS
+        x264
+        fdk-aac
         avcodec
         avfilter
         avformat
         avutil
         swresample
         swscale
+        postproc
 )
 
 set(PLATFORM-LIBS
@@ -29,6 +32,7 @@ set(PLATFORM-LIBS
         log
         z
         EGL
+        GLESv2
         GLESv3
         OpenSLES
 )
@@ -73,5 +77,5 @@ target_link_directories(
 # build script, prebuilt third-party libraries, or Android system libraries.
 target_link_libraries(${CMAKE_PROJECT_NAME}
         ${PLATFORM-LIBS}
-        ${FFMPEG-LIBS}
+        ${EXTERNAL-LIBS}
 )

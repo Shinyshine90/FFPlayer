@@ -406,7 +406,7 @@ void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size);
 void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size);
 
 /**
- * Allocate and clearBuffer a buffer, reusing the given one if large enough.
+ * Allocate and clear a buffer, reusing the given one if large enough.
  *
  * Like av_fast_malloc(), but all newly allocated space is initially cleared.
  * Reused buffer is not cleared.

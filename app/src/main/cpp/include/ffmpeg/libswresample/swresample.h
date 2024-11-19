@@ -293,7 +293,7 @@ void swr_close(struct SwrContext *s);
  * If more input is provided than output space, then the input will be buffered.
  * You can avoid this buffering by using swr_get_out_samples() to retrieve an
  * upper bound on the required number of output samples for the given number of
- * input samples. Conversion will runInternal directly without copying whenever possible.
+ * input samples. Conversion will run directly without copying whenever possible.
  *
  * @param s         allocated Swr context, with parameters set
  * @param out       output buffers, only the first one need be set in case of packed audio
@@ -491,7 +491,7 @@ int swr_get_out_samples(struct SwrContext *s, int in_samples);
  * Return the @ref LIBSWRESAMPLE_VERSION_INT constant.
  *
  * This is useful to check if the build-time libswresample has the same version
- * as the runInternal-time one.
+ * as the run-time one.
  *
  * @returns     the unsigned int-typed version
  */

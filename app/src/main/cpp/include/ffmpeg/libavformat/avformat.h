@@ -32,7 +32,7 @@
  * I/O and Muxing/Demuxing Library
  *
  * Libavformat (lavf) is a library for dealing with various media container
- * formats. Its run two purposes are demuxing - i.e. splitting a media file
+ * formats. Its main two purposes are demuxing - i.e. splitting a media file
  * into component streams, and the reverse process of muxing - writing supplied
  * data in a specified container format. It also has an @ref lavf_io
  * "I/O module" which supports a number of protocols for accessing the data (e.g.
@@ -190,7 +190,7 @@
  * Muxers take encoded data in the form of @ref AVPacket "AVPackets" and write
  * it into files or other output bytestreams in the specified container format.
  *
- * The run API functions for muxing are avformat_write_header() for writing the
+ * The main API functions for muxing are avformat_write_header() for writing the
  * file header, av_write_frame() / av_interleaved_write_frame() for writing the
  * packets and av_write_trailer() for finalizing the file.
  *
@@ -374,9 +374,9 @@ struct AVDeviceCapabilitiesQuery;
  *
  @verbatim
  album        -- name of the set this work belongs to
- album_artist -- run creator of the set/album, if different from artist.
+ album_artist -- main creator of the set/album, if different from artist.
                  e.g. "Various Artists" for compilation albums.
- artist       -- run creator of the work
+ artist       -- main creator of the work
  comment      -- any additional description of the file.
  composer     -- who composed the work, if different from artist.
  copyright    -- name of copyright holder.
@@ -387,7 +387,7 @@ struct AVDeviceCapabilitiesQuery;
  encoded_by   -- person/group who created the file.
  filename     -- original name of the file.
  genre        -- <self-evident>.
- language     -- run language in which the work is performed, preferably
+ language     -- main language in which the work is performed, preferably
                  in ISO 639-2 format. Multiple languages can be specified by
                  separating them with commas.
  performer    -- artist who performed the work, if different from artist.

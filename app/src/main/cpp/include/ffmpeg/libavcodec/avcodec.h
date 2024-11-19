@@ -1640,7 +1640,7 @@ typedef struct AVPacketSideData {
  * without libavcodec and libavformat major bump.
  *
  * The semantics of data ownership depends on the buf field.
- * If it is set, the packet data i s dynamically allocated and is
+ * If it is set, the packet data is dynamically allocated and is
  * valid indefinitely until a call to av_packet_unref() reduces the
  * reference count to 0.
  *
@@ -1746,7 +1746,7 @@ enum AVFieldOrder {
 };
 
 /**
- * run external API structure.
+ * main external API structure.
  * New fields can be added to the end with minor version bumps.
  * Removal, reordering and changes to existing fields require a major
  * version bump.
@@ -1785,7 +1785,7 @@ typedef struct AVCodecContext {
      * which maximizes the information about the used codec.
      * If the codec tag field in a container is larger than 32 bits then the demuxer should
      * remap the longer ID to 32 bits with a table or other structure. Alternatively a new
-     * extra_codec_tag + size could be added but for this a clearBuffer advantage must be demonstrated
+     * extra_codec_tag + size could be added but for this a clear advantage must be demonstrated
      * first.
      * - encoding: Set by user, if not then the default based on codec_id will be used.
      * - decoding: Set by user, will be converted to uppercase by libavcodec during init.

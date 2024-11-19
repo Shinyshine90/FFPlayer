@@ -1,49 +1,51 @@
 package com.example.ndkpractice.core
 
+import android.content.res.AssetManager
+import android.opengl.GLSurfaceView
 import android.util.Log
-import android.view.Surface
-import java.util.concurrent.CopyOnWriteArrayList
+import com.example.ndkpractice.App
+import javax.microedition.khronos.egl.EGLConfig
+import javax.microedition.khronos.opengles.GL10
 
-object FFPlayer {
+private const val TAG = "FFPlayer"
 
-    private val callbacks = CopyOnWriteArrayList<(Double)-> Unit>()
+class FFPlayer : GLSurfaceView.Renderer {
 
-    external fun getPlayerVersion(): String
+    external fun glInit(assetManager: AssetManager)
+    external fun glResize(width: Int, height: Int)
+    external fun glDraw()
 
-    external fun startPlay(url: String): Boolean
+    external fun init()
 
-    external fun setDisplaySurface(surface: Surface): Boolean
+    external fun release()
 
-    external fun removeDisplaySurface(surface: Surface): Boolean
+    external fun setUrl(path: String)
 
-    external fun seek(double: Double) : Boolean
+    external fun start()
 
     external fun pause()
 
-    external fun resume()
+    external fun stop()
 
-    external fun isPaused(): Boolean
+    external fun seek(float: Float)
 
-    fun addCallback(callback: (Double)-> Unit) {
-        callbacks.add(callback);
+    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        glInit(App.context.assets)
+        Log.i(TAG, "onSurfaceCreated: $this")
     }
 
-    fun onPlayPositionChanged(position: Double) {
-        Log.i("FFPlayer", "onPlayPositionChanged: $position.")
-        for (c in callbacks) {
-            c.invoke(position)
-        }
+    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        glResize(width, height)
+        Log.i(TAG, "onSurfaceChanged: $this $width, $height")
     }
 
-    fun togglePlay() {
-        if (isPaused()) {
-            resume()
-        } else {
-            pause()
-        }
+    override fun onDrawFrame(gl: GL10?) {
+        //glDraw()
     }
 
     init {
+        System.loadLibrary("x264")
+        System.loadLibrary("fdk-aac")
         System.loadLibrary("ffplayer")
     }
 }
