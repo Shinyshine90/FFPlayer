@@ -9,6 +9,8 @@ private:
 
     int fragmentShader = -1;
 
+    unsigned yuvTextures[3] {0, 0, 0};
+
 public:
 
     FFOpenGLShader();
@@ -19,6 +21,6 @@ public:
 
     void release();
 
-    void draw();
+    void render(int index, unsigned char *data, int width, int height);
 };
 #endif

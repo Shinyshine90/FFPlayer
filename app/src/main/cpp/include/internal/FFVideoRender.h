@@ -1,10 +1,10 @@
-#ifndef NDKPRACTICE_FFVIDEOPLAY_H
-#define NDKPRACTICE_FFVIDEOPLAY_H
+#ifndef NDKPRACTICE_FFVIDEORENDER_H
+#define NDKPRACTICE_FFVIDEORENDER_H
 
 #include "FFEglEnvironment.h"
 #include "FFOpenGLShader.h"
 
-class FFVideoPlay {
+class FFVideoRender {
 
 private:
     FFThread eglThread;
@@ -16,9 +16,11 @@ private:
     void post(std::function<void()>);
 
 public:
-    FFVideoPlay();
+    FFVideoRender();
 
-    ~FFVideoPlay();
+    ~FFVideoRender();
+
+    void render(int index, unsigned char *data, int width, int height);
 
     void setDisplayWindow(ANativeWindow* nativeWindow);
 

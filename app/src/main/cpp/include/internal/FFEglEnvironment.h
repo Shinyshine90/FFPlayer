@@ -21,7 +21,7 @@ private:
 
     EGLContext eglContext = EGL_NO_CONTEXT;
 
-    EGLConfig eglConfig = 0;
+    EGLConfig eglConfig;
 
     EGLSurface eglSurface = EGL_NO_SURFACE;
 
@@ -37,6 +37,10 @@ public:
     void setPreviewWindow(ANativeWindow* aNativeWindow);
 
     void removePreviewWindow();
+
+    void makeCurrentDisplay();
+
+    void swapBuffer();
 };
 
 #endif

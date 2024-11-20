@@ -1,7 +1,7 @@
-#include "FFVideoPlay.h"
+#include "FFVideoRender.h"
 #include <EGL/egl.h>
 
-FFVideoPlay::FFVideoPlay() {
+FFVideoRender::FFVideoRender() {
     eglThread.start();
     post([this]{
         eglEnvironment.init();
@@ -9,8 +9,8 @@ FFVideoPlay::FFVideoPlay() {
     });
 }
 
-FFVideoPlay::~FFVideoPlay() {
-    LOGI("FFVideoPlay destructor.");
+FFVideoRender::~FFVideoRender() {
+    LOGI("FFVideoRender destructor.");
     std::mutex m;
     std::condition_variable condition;
     post([this, &condition]{
@@ -23,30 +23,40 @@ FFVideoPlay::~FFVideoPlay() {
         return true;
     });
     eglThread.stop();
-    LOGI("FFVideoPlay destructor complete.");
+    LOGI("FFVideoRender destructor complete.");
 }
 
-void FFVideoPlay::setDisplayWindow(ANativeWindow *nativeWindow) {
+void FFVideoRender::setDisplayWindow(ANativeWindow *nativeWindow) {
     post([this, nativeWindow]{
         eglEnvironment.setPreviewWindow(nativeWindow);
     });
 }
 
-void FFVideoPlay::removeDisplayWindow() {
+void FFVideoRender::removeDisplayWindow() {
     post([this]{
         eglEnvironment.removePreviewWindow();
     });
 }
 
-void FFVideoPlay::resizeDisplayWindow(int width, int height) {
+void FFVideoRender::resizeDisplayWindow(int width, int height) {
     post([width, height]{
         glViewport(0, 0, width, height);
     });
 }
 
-void FFVideoPlay::post(std::function<void()> runnable) {
+void FFVideoRender::render(int index, unsigned char *data, int width, int height) {
+    post([this, index, data, width, height]{
+        eglEnvironment.makeCurrentDisplay();
+        videoPlayShader.render(index, data, width, height);
+        eglEnvironment.swapBuffer();
+    });
+}
+
+void FFVideoRender::post(std::function<void()> runnable) {
     eglThread.post(runnable);
 }
+
+
 
 
 

@@ -7,12 +7,16 @@
 #include "FFThread.h"
 #include "FFCodecHandler.h"
 #include "FFEglEnvironment.h"
-#include "FFVideoPlay.h"
+#include "FFVideoRender.h"
 
 FFCodecHandler codecHandler;
 
+//FFVideoRender videoPlay;
+
 void testThread(JNIEnv *env, jobject invoker) {
-    FFVideoPlay videoPlay;
+    //videoPlay.render(0, 0, 100, 100);
+    FFEglEnvironment eglEnvironment;
+    eglEnvironment.init();
 }
 
 void setUrl(JNIEnv *env, jobject invoker, jstring url) {
@@ -50,6 +54,7 @@ void seek(JNIEnv *env, jobject invoker, jfloat percent) {
 void setDisplaySurface(JNIEnv *env, jobject invoker, jobject surface) {
     ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
     //videoPlay.setDisplayWindow(window);
+    //videoPlay.render(0, 0, 100,100);
 }
 
 void removeDisplaySurface(JNIEnv *env, jobject invoker) {
