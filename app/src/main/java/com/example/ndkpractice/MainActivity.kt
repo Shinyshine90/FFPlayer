@@ -8,9 +8,11 @@ import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.view.SurfaceHolder
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.example.ndkpractice.core.FFPlayer
+import com.example.ndkpractice.databinding.ActivityMainBinding
 
 private const val TAG = "MainPlayerTag"
 
@@ -24,13 +26,33 @@ class MainActivity : AppCompatActivity() {
         GLSurfaceView(this)
     }
 
+    private val binding by lazy {
+        ActivityMainBinding.inflate(layoutInflater)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(glSurfaceView)
+        setContentView(binding.root)
 
-        glSurfaceView.setEGLContextClientVersion(3)
-        glSurfaceView.setRenderer(player)
-        glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+        binding.sv.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                player.setDisplaySurface(holder.surface)
+
+            }
+
+            override fun surfaceChanged(
+                holder: SurfaceHolder,
+                format: Int,
+                width: Int,
+                height: Int
+            ) {
+
+            }
+
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                player.removeDisplaySurface()
+            }
+        })
 
         supportActionBar?.apply {
             setDisplayShowCustomEnabled(true)
@@ -44,7 +66,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        player
+        player.testThread()
 
         if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 1025)

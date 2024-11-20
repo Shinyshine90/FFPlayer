@@ -1,27 +1,22 @@
 #include <jni.h>
-#include <android/asset_manager_jni.h>
 #include <string>
+#include <android/asset_manager_jni.h>
+#include <android/native_window_jni.h>
 
-#include "FFCodecHandler.h"
 #include "FFLog.h"
+#include "FFThread.h"
+#include "FFCodecHandler.h"
+#include "FFEglEnvironment.h"
+#include "FFVideoPlay.h"
 
 FFCodecHandler codecHandler;
 
-void glInit(JNIEnv *env, jobject invoker, jobject assetManagerObj) {
-    AAssetManager *assetManager = AAssetManager_fromJava(env, assetManagerObj);
-
-}
-
-void glResize(JNIEnv *env, jobject invoker, jint width, jint height) {
-
-}
-
-void glDraw(JNIEnv *env, jobject invoker) {
-
+void testThread(JNIEnv *env, jobject invoker) {
+    FFVideoPlay videoPlay;
 }
 
 void setUrl(JNIEnv *env, jobject invoker, jstring url) {
-    const char* path = env->GetStringUTFChars(url, JNI_FALSE);
+    const char *path = env->GetStringUTFChars(url, JNI_FALSE);
     codecHandler.SetMediaPath(path);
     env->ReleaseStringUTFChars(url, path);
 }
@@ -52,18 +47,31 @@ void seek(JNIEnv *env, jobject invoker, jfloat percent) {
 
 }
 
-static JNINativeMethod methods[] = {
-        {"glInit",   "(Landroid/content/res/AssetManager;)V", (void *) glInit},
-        {"glResize", "(II)V",                                 (void *) glResize},
-        {"glDraw",   "()V",                                   (void *) glDraw},
+void setDisplaySurface(JNIEnv *env, jobject invoker, jobject surface) {
+    ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
+    //videoPlay.setDisplayWindow(window);
+}
 
-        {"init",     "()V",                                   (void *) init},
-        {"release",  "()V",                                   (void *) release},
-        {"setUrl",   "(Ljava/lang/String;)V",                 (void *) setUrl},
-        {"start",    "()V",                                   (void *) start},
-        {"pause",    "()V",                                   (void *) pause},
-        {"stop",     "()V",                                   (void *) stop},
-        {"seek",     "(F)V",                                  (void *) seek},
+void removeDisplaySurface(JNIEnv *env, jobject invoker) {
+    //videoPlay.removeDisplayWindow();
+}
+
+void resizeDisplaySurface(JNIEnv *env, jobject invoker, int w, int h) {
+    //videoPlay.resizeDisplayWindow(w, h);
+}
+
+static JNINativeMethod methods[] = {
+        {"testThread",           "()V",                                   (void *) testThread},
+        {"init",                 "()V",                                   (void *) init},
+        {"release",              "()V",                                   (void *) release},
+        {"setUrl",               "(Ljava/lang/String;)V",                 (void *) setUrl},
+        {"start",                "()V",                                   (void *) start},
+        {"pause",                "()V",                                   (void *) pause},
+        {"stop",                 "()V",                                   (void *) stop},
+        {"seek",                 "(F)V",                                  (void *) seek},
+        {"setDisplaySurface",    "(Landroid/view/Surface;)V",             (void *) setDisplaySurface},
+        {"removeDisplaySurface", "()V",                                   (void *) removeDisplaySurface},
+        {"resizeDisplaySurface", "(II)V",                                 (void *) resizeDisplaySurface},
 };
 
 jint JNI_OnLoad(JavaVM *vm, void *reserved) {
@@ -84,3 +92,4 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 void JNI_OnUnload(JavaVM *vm, void *reserved) {
 
 }
+

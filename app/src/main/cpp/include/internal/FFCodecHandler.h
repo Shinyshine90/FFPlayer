@@ -65,6 +65,8 @@ void readMediaPacket();
 
 void freePacket(AVPacket* packet);
 
+void freeFrame(AVFrame* frame);
+
 public:
     FFCodecHandler();
 

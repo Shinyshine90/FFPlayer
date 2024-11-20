@@ -1,11 +1,6 @@
 #include "FFCodecHandler.h"
 #include "FFLog.h"
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <EGL/eglplatform.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <thread>
 #include <atomic>
 #include <chrono>
@@ -47,20 +42,13 @@ void android_ffmpeg_log_callback(void *ptr, int level, const char *fmt, va_list 
 }
 
 FFCodecHandler::FFCodecHandler() {
-
     av_register_all();
+    avformat_network_init();
     //av_log_set_callback(android_ffmpeg_log_callback);
-    void* proc = (void*)eglGetProcAddress("eglCreateImageKHR");
-    LOGI("eglCreateImageKHR %p", proc);
-    proc = (void*)eglGetProcAddress("glEGLImageTargetTexture2DOES");
-    LOGI("eglCreateImageKHR %p", proc);
-
     LOGI("FFmpeg version info %s.", av_version_info());
 }
 
-FFCodecHandler::~FFCodecHandler() {
-
-}
+FFCodecHandler::~FFCodecHandler() {}
 
 void FFCodecHandler::SetMediaPath(const char *url) {
     this->url = url;
@@ -316,6 +304,14 @@ void FFCodecHandler::freePacket(AVPacket *packet) {
         av_packet_free(&packet);
     }
 }
+
+void FFCodecHandler::freeFrame(AVFrame *frame) {
+    if (frame) {
+        av_frame_free(&frame);
+    }
+}
+
+
 
 
 
