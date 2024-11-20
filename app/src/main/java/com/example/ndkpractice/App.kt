@@ -17,7 +17,4 @@ class App : Application() {
         context = base
     }
 
-    override fun onCreate() {
-        super.onCreate()
-    }
 }

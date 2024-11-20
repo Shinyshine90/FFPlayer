@@ -21,6 +21,8 @@ public:
 
     void release();
 
-    void render(int index, unsigned char *data, int width, int height);
+    void fillYUV(int index, unsigned char *data, int width, int height);
+
+    void render();
 };
 #endif

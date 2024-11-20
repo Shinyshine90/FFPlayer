@@ -56,18 +56,12 @@ void FFEglEnvironment::init() {
         LOGE("FFEglEnvironment create context failed.");
         return;
     }
-    EGLint error = eglGetError();
-    if (error != EGL_SUCCESS) {
-        LOGE("EGL error: %d", error);
-    }
-
+    makeCurrentDisplay();
     LOGI("FFEglEnvironment init complete.");
-    LOGI("create shader, %d", glCreateShader(GL_VERTEX_SHADER));
-    LOGI("create shader, %d", glCreateShader(GL_VERTEX_SHADER));
-    LOGI("create shader, %d", glCreateShader(GL_VERTEX_SHADER));
 }
 
 void FFEglEnvironment::setPreviewWindow(ANativeWindow *nativeWindow) {
+    LOGI("FFEglEnvironment setPreviewWindow.");
     eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, nativeWindow, nullptr);
     if (eglSurface == EGL_NO_SURFACE) {
         LOGE("FFEglEnvironment createEglSurface failed.");
@@ -79,6 +73,7 @@ void FFEglEnvironment::setPreviewWindow(ANativeWindow *nativeWindow) {
 }
 
 void FFEglEnvironment::removePreviewWindow() {
+    LOGI("FFEglEnvironment removePreviewWindow.");
     eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, eglContext);
     if (eglSurface != EGL_NO_SURFACE) {
         if (!eglDestroySurface(eglDisplay, eglSurface)) {
@@ -101,6 +96,8 @@ void FFEglEnvironment::makeCurrentDisplay() {
 void FFEglEnvironment::swapBuffer() {
     if (eglSurface != EGL_NO_SURFACE) {
         eglSwapBuffers(eglDisplay, eglSurface);
+    } else {
+        LOGE("FFEglEnvironment swap buffer on no surface.");
     }
 }
 

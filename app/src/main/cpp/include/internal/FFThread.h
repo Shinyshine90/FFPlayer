@@ -22,6 +22,19 @@ private:
 
     std::condition_variable condition;
 
+    void stop() {
+        if (isInterrupt) return;
+        {
+            clear();
+            isInterrupt = true;
+        }
+        condition.notify_one();
+    }
+
+    void start() {
+        thread = std::thread(&FFThread::run, this);
+    }
+
     void run() {
         while (true) {
             std::unique_lock<std::mutex> lock(mutex);
@@ -35,13 +48,18 @@ private:
     }
 
 public:
-    FFThread() {}
+    FFThread() {
+        start();
+    }
 
-    virtual ~FFThread() {}
-
-    void start() {
-        thread = std::thread(&FFThread::run, this);
-        thread.detach();
+    virtual ~FFThread() {
+        LOGI("FFThread destructor.");
+        stop();
+        LOGI("FFThread destructor stop.");
+        if (thread.joinable()) {
+            thread.join();
+        }
+        LOGI("FFThread destructor finish.");
     }
 
     void post(std::function<void()> runnable) {
@@ -51,15 +69,6 @@ public:
         {
             std::lock_guard<std::mutex> lock(mutex);
             tasks.push_back(runnable);
-        }
-        condition.notify_one();
-    }
-
-    void stop() {
-        if (isInterrupt) return;
-        {
-            clear();
-            isInterrupt = true;
         }
         condition.notify_one();
     }

@@ -3,6 +3,7 @@
 
 #include <string>
 #include "FFMediaQueue.h"
+#include "FFVideoRender.h"
 
 extern "C" {
 #include "libavformat/avformat.h"
@@ -33,7 +34,7 @@ AVFormatContext* ic = nullptr;
 
 int videoStream = -1, audioStream = -1;
 
-AVCodecContext * videoCodecCtx, *audioCodecCtx;
+AVCodecContext *videoCodecCtx = nullptr, *audioCodecCtx = nullptr;
 
 AVRational aTimeBase, vTimeBase;
 
@@ -67,7 +68,11 @@ void freePacket(AVPacket* packet);
 
 void freeFrame(AVFrame* frame);
 
+void handleVideoFrame(AVFrame* frame);
+
 public:
+    FFVideoRender videoRender;
+
     FFCodecHandler();
 
     ~FFCodecHandler();

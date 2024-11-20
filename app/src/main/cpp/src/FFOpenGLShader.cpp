@@ -171,11 +171,14 @@ void FFOpenGLShader::release() {
     glDeleteTextures(3, yuvTextures);
 }
 
-void FFOpenGLShader::render(int index, unsigned char *data, int width, int height) {
-    glUseProgram(program);
+void FFOpenGLShader::fillYUV(int index, unsigned char *data, int width, int height) {
     genTexture(yuvTextures, index, width, height);
     fillTextureData(index, yuvTextures, data, width, height);
-    glClearColor(0.5, 0.5, 0.5, 0.5);
+}
+
+void FFOpenGLShader::render() {
+    glUseProgram(program);
+    glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);
-    //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }

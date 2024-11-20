@@ -5,7 +5,6 @@
 #include <atomic>
 #include <chrono>
 
-int vPacketSizeTotal = 0;
 
 std::atomic<bool> demuxThreadRunning(false);
 
@@ -100,7 +99,6 @@ int FFCodecHandler::InitCodec() {
     }
     //LOGI("avcodec, vCtx = %p, aCtx = %p.", videoCodecCtx, audioCodecCtx);
     //LOGI("video info, width = %d, height = %d.", videoCodecCtx->width, videoCodecCtx->height);
-
     vTimeBase = ic->streams[videoStream]->time_base;
     aTimeBase = ic->streams[audioStream]->time_base;
     return 0;
@@ -222,8 +220,8 @@ void FFCodecHandler::videoDecode() {
             LOGE("send packet to codec failed.");
         }
         if (avcodec_receive_frame(videoCodecCtx, videoFrame) == 0) {
-            LOGI("receive video frame size = %d, %d, pts = %f.", videoFrame->width, videoFrame->height,
-                 videoFrame->pts * av_q2d(vTimeBase));
+            //LOGI("receive video frame size = %d, %d, pts = %f.", videoFrame->width, videoFrame->height, videoFrame->pts * av_q2d(vTimeBase));
+            handleVideoFrame(videoFrame);
         }
         freePacket(packet);
     }
@@ -257,8 +255,7 @@ void FFCodecHandler::audioDecode() {
             LOGE("send packet to codec failed.");
         }
         if (avcodec_receive_frame(audioCodecCtx, audioFrame) == 0) {
-            LOGI("receive audio frame samples = %d, pts = %f.", audioFrame->nb_samples,
-                 audioFrame->pts * av_q2d(aTimeBase));
+            //LOGI("receive audio frame samples = %d, pts = %f.", audioFrame->nb_samples,audioFrame->pts * av_q2d(aTimeBase));
         }
         freePacket(packet);
     }
@@ -297,9 +294,6 @@ void FFCodecHandler::readMediaPacket() {
 
 void FFCodecHandler::freePacket(AVPacket *packet) {
     if (packet) {
-        if (packet->buf) {
-            LOGI("packet refs count = %d.", av_buffer_get_ref_count(packet->buf));
-        }
         av_packet_unref(packet);
         av_packet_free(&packet);
     }
@@ -309,6 +303,25 @@ void FFCodecHandler::freeFrame(AVFrame *frame) {
     if (frame) {
         av_frame_free(&frame);
     }
+}
+
+void FFCodecHandler::handleVideoFrame(AVFrame *frame) {
+    if (!frame) {
+        return;
+    }
+    int width = frame->width, height = frame->height;
+    //frame->format
+    //AVPixelFormat::AV_PIX_FMT_YUV420P
+    unsigned char* y = new unsigned char[width * height];
+    unsigned char* u = new unsigned char[width * height / 4];
+    unsigned char* v = new unsigned char[width * height / 4];
+    memcpy(y, frame->data[0], width * height);
+    memcpy(u, frame->data[1], width * height / 4);
+    memcpy(v, frame->data[2], width * height / 4);
+    videoRender.fill(0, y,width, height);
+    videoRender.fill(1, u,width / 2, height / 2);
+    videoRender.fill(2, v,width / 2, height / 2);
+    videoRender.render();
 }
 
 

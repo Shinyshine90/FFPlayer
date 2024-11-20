@@ -2,7 +2,6 @@
 #include <EGL/egl.h>
 
 FFVideoRender::FFVideoRender() {
-    eglThread.start();
     post([this]{
         eglEnvironment.init();
         videoPlayShader.init();
@@ -13,6 +12,7 @@ FFVideoRender::~FFVideoRender() {
     LOGI("FFVideoRender destructor.");
     std::mutex m;
     std::condition_variable condition;
+    eglThread.clear();
     post([this, &condition]{
         videoPlayShader.release();
         eglEnvironment.release();
@@ -22,7 +22,6 @@ FFVideoRender::~FFVideoRender() {
     condition.wait_for(l, std::chrono::milliseconds(200), []{
         return true;
     });
-    eglThread.stop();
     LOGI("FFVideoRender destructor complete.");
 }
 
@@ -44,17 +43,26 @@ void FFVideoRender::resizeDisplayWindow(int width, int height) {
     });
 }
 
-void FFVideoRender::render(int index, unsigned char *data, int width, int height) {
+void FFVideoRender::fill(int index, unsigned char *data, int width, int height) {
     post([this, index, data, width, height]{
+        videoPlayShader.fillYUV(index, data, width, height);
+        delete data;
+    });
+}
+
+void FFVideoRender::render() {
+    post([this]{
         eglEnvironment.makeCurrentDisplay();
-        videoPlayShader.render(index, data, width, height);
+        videoPlayShader.render();
         eglEnvironment.swapBuffer();
+        LOGI("FFVideoRender render.");
     });
 }
 
 void FFVideoRender::post(std::function<void()> runnable) {
     eglThread.post(runnable);
 }
+
 
 
 

@@ -9,34 +9,39 @@
 #include "FFEglEnvironment.h"
 #include "FFVideoRender.h"
 
-FFCodecHandler codecHandler;
+FFCodecHandler* codecHandler = nullptr;
 
-//FFVideoRender videoPlay;
+FFCodecHandler* getFFCodecHandler() {
+    if (codecHandler == nullptr) {
+        codecHandler = new FFCodecHandler();
+    }
+    return codecHandler;
+}
 
 void testThread(JNIEnv *env, jobject invoker) {
-    //videoPlay.render(0, 0, 100, 100);
-    FFEglEnvironment eglEnvironment;
-    eglEnvironment.init();
+    FFThread* thread = new FFThread();
+    delete thread;
 }
 
 void setUrl(JNIEnv *env, jobject invoker, jstring url) {
     const char *path = env->GetStringUTFChars(url, JNI_FALSE);
-    codecHandler.SetMediaPath(path);
+    getFFCodecHandler()->SetMediaPath(path);
     env->ReleaseStringUTFChars(url, path);
 }
 
 void init(JNIEnv *env, jobject invoker) {
-    codecHandler.UnInitCodec();
-    codecHandler.InitCodec();
-    codecHandler.StartPlayVideo();
+    getFFCodecHandler()->InitCodec();
 }
 
 void release(JNIEnv *env, jobject invoker) {
-    codecHandler.UnInitCodec();
+    if (codecHandler) {
+        codecHandler->UnInitCodec();
+        delete codecHandler;
+    }
 }
 
 void start(JNIEnv *env, jobject invoker) {
-
+    getFFCodecHandler()->StartPlayVideo();
 }
 
 void pause(JNIEnv *env, jobject invoker) {
@@ -53,16 +58,15 @@ void seek(JNIEnv *env, jobject invoker, jfloat percent) {
 
 void setDisplaySurface(JNIEnv *env, jobject invoker, jobject surface) {
     ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
-    //videoPlay.setDisplayWindow(window);
-    //videoPlay.render(0, 0, 100,100);
+    getFFCodecHandler()->videoRender.setDisplayWindow(window);
 }
 
 void removeDisplaySurface(JNIEnv *env, jobject invoker) {
-    //videoPlay.removeDisplayWindow();
+    getFFCodecHandler()->videoRender.removeDisplayWindow();
 }
 
 void resizeDisplaySurface(JNIEnv *env, jobject invoker, int w, int h) {
-    //videoPlay.resizeDisplayWindow(w, h);
+    getFFCodecHandler()->videoRender.resizeDisplayWindow(w, h);
 }
 
 static JNINativeMethod methods[] = {

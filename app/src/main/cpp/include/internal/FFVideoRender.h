@@ -20,7 +20,9 @@ public:
 
     ~FFVideoRender();
 
-    void render(int index, unsigned char *data, int width, int height);
+    void fill(int index, unsigned char *data, int width, int height);
+
+    void render();
 
     void setDisplayWindow(ANativeWindow* nativeWindow);
 

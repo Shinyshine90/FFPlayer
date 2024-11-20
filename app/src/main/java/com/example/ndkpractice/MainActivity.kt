@@ -34,9 +34,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
+        Log.i(TAG, "onCreate: ")
+
         binding.sv.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 player.setDisplaySurface(holder.surface)
+                Log.i(TAG, "surfaceCreated: ")
 
             }
 
@@ -46,11 +49,13 @@ class MainActivity : AppCompatActivity() {
                 width: Int,
                 height: Int
             ) {
-
+                Log.i(TAG, "surfaceChanged: ")
+                player.resizeDisplaySurface(width, height)
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 player.removeDisplaySurface()
+                Log.i(TAG, "surfaceDestroyed: ")
             }
         })
 
@@ -67,6 +72,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         player.testThread()
+        //onFetchUrl("/storage/emulated/0/Pictures/WeiXin/wx_camera_1731658601272.mp4")
 
         if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 1025)
@@ -74,8 +80,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onFetchUrl(url: String) {
+        player.release()
         player.setUrl(url)
         player.init()
+        player.start()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -97,6 +105,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return null
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.i(TAG, "onResume: ${binding.sv.holder.surface.isValid}")
+        //player.setDisplaySurface(binding.sv.holder.surface)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.i(TAG, "onPause: ")
     }
 
     override fun onDestroy() {
