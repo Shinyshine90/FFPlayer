@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity() {
     private fun onFetchUrl(url: String) {
         player.release()
         player.setUrl(url)
-        player.init()
+        player.prepare()
         player.start()
     }
 

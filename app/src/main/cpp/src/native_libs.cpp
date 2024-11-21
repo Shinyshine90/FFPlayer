@@ -1,7 +1,10 @@
 #include <jni.h>
 #include <string>
+
 #include <android/asset_manager_jni.h>
 #include <android/native_window_jni.h>
+#include <unordered_map>
+#include <memory>
 
 #include "FFLog.h"
 #include "FFThread.h"
@@ -9,39 +12,24 @@
 #include "FFEglEnvironment.h"
 #include "FFVideoRender.h"
 
-FFCodecHandler* codecHandler = nullptr;
-
-FFCodecHandler* getFFCodecHandler() {
-    if (codecHandler == nullptr) {
-        codecHandler = new FFCodecHandler();
-    }
-    return codecHandler;
-}
+FFCodecHandler player;
 
 void testThread(JNIEnv *env, jobject invoker) {
-    FFThread* thread = new FFThread();
-    delete thread;
+
 }
 
 void setUrl(JNIEnv *env, jobject invoker, jstring url) {
     const char *path = env->GetStringUTFChars(url, JNI_FALSE);
-    getFFCodecHandler()->SetMediaPath(path);
+    player.SetMediaPath(path);
     env->ReleaseStringUTFChars(url, path);
 }
 
-void init(JNIEnv *env, jobject invoker) {
-    getFFCodecHandler()->InitCodec();
-}
-
-void release(JNIEnv *env, jobject invoker) {
-    if (codecHandler) {
-        codecHandler->UnInitCodec();
-        delete codecHandler;
-    }
+void prepare(JNIEnv *env, jobject invoker) {
+   player.InitCodec();
 }
 
 void start(JNIEnv *env, jobject invoker) {
-    getFFCodecHandler()->StartPlayVideo();
+    player.StartPlayVideo();
 }
 
 void pause(JNIEnv *env, jobject invoker) {
@@ -58,20 +46,24 @@ void seek(JNIEnv *env, jobject invoker, jfloat percent) {
 
 void setDisplaySurface(JNIEnv *env, jobject invoker, jobject surface) {
     ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
-    getFFCodecHandler()->videoRender.setDisplayWindow(window);
+    player.videoRender.setDisplayWindow(window);
 }
 
 void removeDisplaySurface(JNIEnv *env, jobject invoker) {
-    getFFCodecHandler()->videoRender.removeDisplayWindow();
+    player.videoRender.removeDisplayWindow();
 }
 
 void resizeDisplaySurface(JNIEnv *env, jobject invoker, int w, int h) {
-    getFFCodecHandler()->videoRender.resizeDisplayWindow(w, h);
+    player.videoRender.resizeDisplayWindow(w, h);
+}
+
+void release(JNIEnv *env, jobject invoker) {
+  player.UnInitCodec();
 }
 
 static JNINativeMethod methods[] = {
         {"testThread",           "()V",                                   (void *) testThread},
-        {"init",                 "()V",                                   (void *) init},
+        {"prepare",              "()V",                                   (void *) prepare},
         {"release",              "()V",                                   (void *) release},
         {"setUrl",               "(Ljava/lang/String;)V",                 (void *) setUrl},
         {"start",                "()V",                                   (void *) start},

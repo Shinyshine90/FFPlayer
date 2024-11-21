@@ -5,13 +5,6 @@
 #include <atomic>
 #include <chrono>
 
-
-std::atomic<bool> demuxThreadRunning(false);
-
-std::atomic<bool> vDecodeThreadRunning(false);
-
-std::atomic<bool> aDecodeThreadRunning(false);
-
 void android_ffmpeg_log_callback(void *ptr, int level, const char *fmt, va_list vl) {
     int android_log_level;
     switch (level) {

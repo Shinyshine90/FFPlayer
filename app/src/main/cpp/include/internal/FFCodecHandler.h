@@ -50,6 +50,12 @@ AVFrame* videoFrame = nullptr;
 
 AVFrame* audioFrame = nullptr;
 
+std::atomic<bool> demuxThreadRunning {false};
+
+std::atomic<bool> vDecodeThreadRunning {false};
+
+std::atomic<bool> aDecodeThreadRunning{false};
+
 void startMediaProcessThread();
 
 void waitAllMediaThreadExit();

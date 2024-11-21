@@ -5,13 +5,20 @@ import android.view.Surface
 private const val TAG = "FFPlayer"
 
 class FFPlayer {
+
+    companion object {
+        init {
+            System.loadLibrary("x264")
+            System.loadLibrary("fdk-aac")
+            System.loadLibrary("ffplayer")
+        }
+    }
+
     external fun testThread()
 
-    external fun init()
-
-    external fun release()
-
     external fun setUrl(path: String)
+
+    external fun prepare()
 
     external fun start()
 
@@ -27,9 +34,7 @@ class FFPlayer {
 
     external fun resizeDisplaySurface(w: Int, h: Int)
 
-    init {
-        System.loadLibrary("x264")
-        System.loadLibrary("fdk-aac")
-        System.loadLibrary("ffplayer")
-    }
+    external fun release()
+
+
 }
