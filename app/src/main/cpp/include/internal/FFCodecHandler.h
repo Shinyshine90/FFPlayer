@@ -4,6 +4,8 @@
 #include <string>
 #include "FFMediaQueue.h"
 #include "FFVideoRender.h"
+#include "FFAvSync.h"
+#include "FFAudioSpeaker.h"
 
 extern "C" {
 #include "libavformat/avformat.h"
@@ -16,10 +18,13 @@ enum FFMediaType {
 };
 
 enum FFPlayStatus {
-    STATUS_PLAYING = 0,
+    STATUS_INIT = 0,
+    STATUS_PREPARE,
+    STATUS_PLAYING,
     STATUS_PAUSE,
     STATUS_SEEK,
     STATUS_STOP,
+    STATUS_RELEASE
 };
 
 class FFCodecHandler {
@@ -38,7 +43,7 @@ AVCodecContext *videoCodecCtx = nullptr, *audioCodecCtx = nullptr;
 
 AVRational aTimeBase, vTimeBase;
 
-FFPlayStatus playStatus;
+FFPlayStatus playStatus = STATUS_INIT;
 
 FFMediaQueue<AVPacket*> videoPackets;
 
@@ -50,11 +55,15 @@ AVFrame* videoFrame = nullptr;
 
 AVFrame* audioFrame = nullptr;
 
-std::atomic<bool> demuxThreadRunning {false};
+std::thread demuxThread, vDecodeThread, aDecodeThread;
 
-std::atomic<bool> vDecodeThreadRunning {false};
+std::atomic<bool> isInterrupted {false };
 
-std::atomic<bool> aDecodeThreadRunning{false};
+std::mutex statusMutex;
+
+FFAvSync timeSync;
+
+
 
 void startMediaProcessThread();
 
@@ -76,8 +85,12 @@ void freeFrame(AVFrame* frame);
 
 void handleVideoFrame(AVFrame* frame);
 
+void handleAudioFrame(AVFrame* frame);
+
 public:
     FFVideoRender videoRender;
+
+    FFAudioSpeaker audioSpeaker;
 
     FFCodecHandler();
 
@@ -91,15 +104,13 @@ public:
 
     void StartPlayVideo();
 
+    void PausePlayVideo();
+
     void StopPlayVideo();
-
-    void SetStatusPlay();
-
-    void SetStatusPause();
 
     void Seek(float position);
 
-    void GetMediaTotalSeconds();
+    int GetMediaTotalSeconds();
 
     int GetPlayStatus();
 
