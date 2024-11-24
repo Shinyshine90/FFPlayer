@@ -55,7 +55,6 @@ void FFVideoRender::render() {
         eglEnvironment.makeCurrentDisplay();
         videoPlayShader.render();
         eglEnvironment.swapBuffer();
-        LOGI("FFVideoRender render.");
     });
 }
 

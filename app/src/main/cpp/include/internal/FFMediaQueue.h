@@ -8,7 +8,7 @@
 template <typename T>
 class FFMediaQueue {
 public:
-    FFMediaQueue(int maxCapacity = 200){
+    FFMediaQueue(int maxCapacity = 100){
         this->maxCapacity = maxCapacity;
     }
 
@@ -17,6 +17,11 @@ public:
     void enqueue(const T& t) {
         std::lock_guard<std::mutex> lock(mutex);
         queue.push(t);
+    }
+
+    T peek() {
+        std::lock_guard<std::mutex> lock(mutex);
+        return queue.front();
     }
 
     T dequeue() {

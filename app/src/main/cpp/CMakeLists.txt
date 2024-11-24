@@ -52,6 +52,7 @@ set(PLATFORM-LIBS
 # used in the AndroidManifest.xml file.
 file(GLOB SRCS ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
+
 message(${SRCS})
 
 add_library(${CMAKE_PROJECT_NAME}

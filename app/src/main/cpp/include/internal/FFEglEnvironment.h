@@ -25,6 +25,8 @@ private:
 
     EGLSurface eglSurface = EGL_NO_SURFACE;
 
+    ANativeWindow* currentWindow = nullptr;
+
 public:
     FFEglEnvironment();
 

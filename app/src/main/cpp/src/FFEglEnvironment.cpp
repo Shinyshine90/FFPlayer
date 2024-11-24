@@ -61,14 +61,19 @@ void FFEglEnvironment::init() {
 }
 
 void FFEglEnvironment::setPreviewWindow(ANativeWindow *nativeWindow) {
-    LOGI("FFEglEnvironment setPreviewWindow.");
+    LOGI("FFEglEnvironment setPreviewWindow, this = %p, current = %p, new = %p.", this, currentWindow, nativeWindow);
+    if (currentWindow == nativeWindow) {
+        return;
+    }
+    currentWindow = nativeWindow;
+
+    eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, eglContext);
     eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, nativeWindow, nullptr);
     if (eglSurface == EGL_NO_SURFACE) {
         LOGE("FFEglEnvironment createEglSurface failed.");
     } else {
-        if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
-            LOGE("FFEglEnvironment eglMakeCurrent failed.");
-        }
+        eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
+        LOGE("FFEglEnvironment createEglSurface success.");
     }
 }
 
@@ -81,6 +86,7 @@ void FFEglEnvironment::removePreviewWindow() {
         }
     }
     eglSurface = EGL_NO_SURFACE;
+    currentWindow = nullptr;
 }
 
 void FFEglEnvironment::release() {

@@ -5,48 +5,18 @@
 #include <atomic>
 #include <chrono>
 
-void android_ffmpeg_log_callback(void *ptr, int level, const char *fmt, va_list vl) {
-    int android_log_level;
-    switch (level) {
-        case AV_LOG_PANIC:
-        case AV_LOG_FATAL:
-            android_log_level = ANDROID_LOG_FATAL;
-            break;
-        case AV_LOG_ERROR:
-            android_log_level = ANDROID_LOG_ERROR;
-            break;
-        case AV_LOG_WARNING:
-            android_log_level = ANDROID_LOG_WARN;
-            break;
-        case AV_LOG_INFO:
-            android_log_level = ANDROID_LOG_INFO;
-            break;
-        case AV_LOG_VERBOSE:
-        case AV_LOG_DEBUG:
-            android_log_level = ANDROID_LOG_DEBUG;
-            break;
-        default:
-            android_log_level = ANDROID_LOG_DEFAULT;
-            break;
-    }
-
-    __android_log_vprint(android_log_level, "FFMPEG", fmt, vl);
-}
-
-FFCodecHandler::FFCodecHandler() {
-    av_register_all();
-    avformat_network_init();
-    //av_log_set_callback(android_ffmpeg_log_callback);
-    LOGI("FFmpeg version info %s.", av_version_info());
-}
+FFCodecHandler::FFCodecHandler() {}
 
 FFCodecHandler::~FFCodecHandler() {}
 
 void FFCodecHandler::SetMediaPath(const char *url) {
+    std::lock_guard<std::mutex> lock(statusMutex);
     this->url = url;
 }
 
 int FFCodecHandler::InitCodec() {
+    std::lock_guard<std::mutex> lock(statusMutex);
+    playStatus = FFPlayStatus::STATUS_PREPARE;
     ic = avformat_alloc_context();
     if (this->url == nullptr) {
         LOGF("init codec null url.");
@@ -62,43 +32,58 @@ int FFCodecHandler::InitCodec() {
         return -1;
     }
     LOGI("init code, init avformat complete.");
-    //av_dump_format(ic, 0, url, 0);
     videoStream = av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
     audioStream = av_find_best_stream(ic, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
     LOGI("avformat, found video stream %d, audio stream %d.", videoStream, audioStream);
+
     if (0 <= videoStream) {
+        LOGI("avformat, video codec id = %d.", ic->streams[videoStream]->codecpar->codec_id);
         AVCodec* videoCodec = avcodec_find_decoder(ic->streams[videoStream]->codecpar->codec_id);
+        //AVCodec* videoCodec = avcodec_find_decoder_by_name("h264_mediacodec");
         if (videoCodec) {
             videoCodecCtx = avcodec_alloc_context3(videoCodec);
+            videoCodecCtx->thread_count = 8;
             avcodec_parameters_to_context(videoCodecCtx, ic->streams[videoStream]->codecpar);
             if (avcodec_open2(videoCodecCtx, videoCodec, nullptr)) {
                 LOGE("video codec open failed.");
+            } else {
+                LOGI("video codec open success, id = %d, fmt = %d.", videoCodecCtx->codec_id, videoCodecCtx->pix_fmt);
             }
         } else {
             LOGE("avformat, found no codec for video stream.");
         }
+        vTimeBase = ic->streams[videoStream]->time_base;
     }
     if (0 <= audioStream) {
+        LOGI("avformat, audio codec id = %d.", ic->streams[videoStream]->codecpar->codec_id);
         AVCodec* audioCodec = avcodec_find_decoder(ic->streams[audioStream]->codecpar->codec_id);
         if (audioCodec) {
             audioCodecCtx = avcodec_alloc_context3(audioCodec);
+            audioCodecCtx->thread_count = 4;
             avcodec_parameters_to_context(audioCodecCtx, ic->streams[audioStream]->codecpar);
             if (avcodec_open2(audioCodecCtx, audioCodec, nullptr)) {
                 LOGE("audio codec open failed.");
+            } else {
+                audioSpeaker.init(audioCodecCtx->sample_rate,
+                                  audioCodecCtx->sample_fmt,
+                                  audioCodecCtx->channel_layout,
+                                  44100,
+                                  AVSampleFormat::AV_SAMPLE_FMT_S16,
+                                  av_get_default_channel_layout(2));
+                LOGI("audio codec open success.");
             }
         } else {
             LOGE("avformat, found no codec for audio stream.");
         }
+        aTimeBase = ic->streams[audioStream]->time_base;
     }
-    //LOGI("avcodec, vCtx = %p, aCtx = %p.", videoCodecCtx, audioCodecCtx);
-    //LOGI("video info, width = %d, height = %d.", videoCodecCtx->width, videoCodecCtx->height);
-    vTimeBase = ic->streams[videoStream]->time_base;
-    aTimeBase = ic->streams[audioStream]->time_base;
     return 0;
 }
 
 void FFCodecHandler::UnInitCodec() {
-    demuxThreadRunning = false;
+    StopPlayVideo();
+    std::lock_guard<std::mutex> lock(statusMutex);
+    playStatus = FFPlayStatus::STATUS_RELEASE;
     if (videoCodecCtx) {
         avcodec_close(videoCodecCtx);
     }
@@ -109,70 +94,109 @@ void FFCodecHandler::UnInitCodec() {
         avformat_close_input(&ic);
     }
 
-    videoPackets.clear();
-    audioPackets.clear();
-    demuxFileEOF = false;
+    freeFrame(videoFrame);
+
+    freeFrame(audioFrame);
+
+    while (!videoPackets.isEmpty()) {
+        freePacket(videoPackets.dequeue());
+    }
+
+    while (!audioPackets.isEmpty()) {
+        freePacket(audioPackets.dequeue());
+    }
 }
 
 void FFCodecHandler::StartPlayVideo() {
-    startMediaProcessThread();
+    std::lock_guard<std::mutex> lock(statusMutex);
+    FFPlayStatus prevStatus = playStatus;
+    playStatus = FFPlayStatus::STATUS_PLAYING;
+    //audioSpeaker.start();
+    if (prevStatus == FFPlayStatus::STATUS_PREPARE) {
+        startMediaProcessThread();
+        LOGI("FFCodecHandler start.");
+    } else if (prevStatus == FFPlayStatus::STATUS_PAUSE) {
+        timeSync.resumeSync();
+        LOGI("FFCodecHandler resume.");
+    }
+}
+
+void FFCodecHandler::PausePlayVideo() {
+    std::lock_guard<std::mutex> lock(statusMutex);
+    playStatus = FFPlayStatus::STATUS_PAUSE;
+    timeSync.pauseSync();
+    audioSpeaker.stop();
+    LOGI("FFCodecHandler pause.");
 }
 
 void FFCodecHandler::StopPlayVideo() {
-
-}
-
-void FFCodecHandler::SetStatusPlay() {
-
-}
-
-void FFCodecHandler::SetStatusPause() {
-
+    std::lock_guard<std::mutex> lock(statusMutex);
+    if (STATUS_STOP <= playStatus) return;
+    playStatus = FFPlayStatus::STATUS_STOP;
+    audioSpeaker.stop();
+    isInterrupted = true;
+    waitAllMediaThreadExit();
+    LOGI("FFCodecHandler stop.");
 }
 
 void FFCodecHandler::Seek(float position) {
-
+    std::lock_guard<std::mutex> lock(statusMutex);
+    playStatus = FFPlayStatus::STATUS_SEEK;
+    //
+    LOGI("FFCodecHandler seek %f.", position);
 }
 
-void FFCodecHandler::GetMediaTotalSeconds() {
-
-}
-
-int FFCodecHandler::GetPlayStatus() {
+int FFCodecHandler::GetMediaTotalSeconds() {
+    if (ic && 0 <= videoStream) {
+        return ic->streams[videoStream]->duration * av_q2d(vTimeBase) * 1000;
+    }
     return 0;
 }
 
+int FFCodecHandler::GetPlayStatus() {
+    return playStatus;
+}
 
 void FFCodecHandler::startMediaProcessThread() {
-    demuxThreadRunning = true;
-
-    std::thread demuxThread(&FFCodecHandler::demux, this);
-    demuxThread.detach();
-
-    std::thread videoDecodeThread(&FFCodecHandler::videoDecode, this);
-    videoDecodeThread.detach();
-
-    std::thread audioDecodeThread(&FFCodecHandler::audioDecode, this);
-    audioDecodeThread.detach();
+    if (ic == nullptr) {
+        LOGE("FFCodecHandler avformat open input failed.");
+        return;
+    }
+    demuxThread = std::thread(&FFCodecHandler::demux, this);
+    if (videoCodecCtx) {
+        vDecodeThread = std::thread(&FFCodecHandler::videoDecode, this);
+    }
+    if (audioCodecCtx) {
+        aDecodeThread = std::thread(&FFCodecHandler::audioDecode, this);
+    }
 }
 
 void FFCodecHandler::waitAllMediaThreadExit() {
-
+    if (demuxThread.joinable()) {
+        demuxThread.join();
+    }
+    if (vDecodeThread.joinable()) {
+        vDecodeThread.join();
+    }
+    if (aDecodeThread.joinable()) {
+        aDecodeThread.join();
+    }
 }
 
 void FFCodecHandler::stdThreadSleep(int ms) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 void FFCodecHandler::demux() {
-    while (demuxThreadRunning) {
+    while (!isInterrupted) {
         if (playStatus == FFPlayStatus::STATUS_PAUSE) {
             stdThreadSleep(10);
             continue;
         }
-        //LOGI("v size %d, a size %d.", videoPackets.size(), audioPackets.size());
+
         if (videoPackets.isOverflow() || audioPackets.isOverflow()) {
             stdThreadSleep(10);
+            LOGE("packets overflow, vs = %ld, as = %ld.", videoPackets.size(), audioPackets.size());
             continue;
         }
 
@@ -186,14 +210,11 @@ void FFCodecHandler::demux() {
 }
 
 void FFCodecHandler::videoDecode() {
-    if (ic == nullptr || videoCodecCtx == nullptr) {
-        return;
-    }
+    //if (true) return;
     if (videoFrame == nullptr) {
         videoFrame  = av_frame_alloc();
     }
-    while (demuxThreadRunning) {
-        vDecodeThreadRunning = true;
+    while (!isInterrupted) {
         if (playStatus == FFPlayStatus::STATUS_PAUSE) {
             stdThreadSleep(10);
             continue;
@@ -202,33 +223,26 @@ void FFCodecHandler::videoDecode() {
             stdThreadSleep(10);
             continue;
         }
+
         AVPacket* packet = videoPackets.dequeue();
-        if (packet == nullptr) {
-            stdThreadSleep(10);
-            continue;
+        int ret = avcodec_send_packet(videoCodecCtx, packet);
+        freePacket(packet);
+        if (ret) {
+            LOGE("send packet failed.");
         }
 
-        int ret = avcodec_send_packet(videoCodecCtx, packet);
-        if (ret) {
-            LOGE("send packet to codec failed.");
-        }
-        if (avcodec_receive_frame(videoCodecCtx, videoFrame) == 0) {
-            //LOGI("receive video frame size = %d, %d, pts = %f.", videoFrame->width, videoFrame->height, videoFrame->pts * av_q2d(vTimeBase));
+        while (avcodec_receive_frame(videoCodecCtx, videoFrame) == 0) {
+            //LOGI("receive video frame, pts = %f.", videoFrame->pts * av_q2d(vTimeBase));
             handleVideoFrame(videoFrame);
         }
-        freePacket(packet);
     }
 }
 
 void FFCodecHandler::audioDecode() {
-    if (ic == nullptr || audioCodecCtx == nullptr) {
-        return;
-    }
     if (audioFrame == nullptr) {
         audioFrame  = av_frame_alloc();
     }
-    while (demuxThreadRunning) {
-        vDecodeThreadRunning = true;
+    while (!isInterrupted) {
         if (playStatus == FFPlayStatus::STATUS_PAUSE) {
             stdThreadSleep(10);
             continue;
@@ -237,20 +251,18 @@ void FFCodecHandler::audioDecode() {
             stdThreadSleep(10);
             continue;
         }
-        AVPacket* packet = audioPackets.dequeue();
-        if (packet == nullptr) {
-            stdThreadSleep(10);
-            continue;
-        }
 
+        AVPacket* packet = audioPackets.dequeue();
         int ret = avcodec_send_packet(audioCodecCtx, packet);
         if (ret) {
-            LOGE("send packet to codec failed.");
-        }
-        if (avcodec_receive_frame(audioCodecCtx, audioFrame) == 0) {
-            //LOGI("receive audio frame samples = %d, pts = %f.", audioFrame->nb_samples,audioFrame->pts * av_q2d(aTimeBase));
+            LOGE("audio decode send packet failed, ret = %d.", ret);
         }
         freePacket(packet);
+
+        if (avcodec_receive_frame(audioCodecCtx, audioFrame) == 0) {
+            LOGI("receive audio frame, pts = %f.",audioFrame->pts * av_q2d(aTimeBase));
+            handleAudioFrame(audioFrame);
+        }
     }
 }
 
@@ -277,12 +289,16 @@ void FFCodecHandler::readMediaPacket() {
                 freePacket(copy);
             }
         }
+        if (!timeSync.isStart()) {
+            timeSync.startSync();
+        }
     } else if (ret < 0) {
         if (!demuxFileEOF && ret == AVERROR_EOF) {
             demuxFileEOF = true;
         }
     }
     freePacket(packet);
+    stdThreadSleep(1);
 }
 
 void FFCodecHandler::freePacket(AVPacket *packet) {
@@ -302,9 +318,21 @@ void FFCodecHandler::handleVideoFrame(AVFrame *frame) {
     if (!frame) {
         return;
     }
+    int64_t ptsTime = frame->pts * av_q2d(vTimeBase) * 1000;
+    int64_t draftTime = timeSync.getSyncDrift();
+    int64_t diff = abs(ptsTime - draftTime);
+    if (draftTime < ptsTime) {
+        while (draftTime < ptsTime) {
+            LOGI("pts = %ld, draft = %ld, sync video sleep.", ptsTime, draftTime);
+            stdThreadSleep(ptsTime - draftTime);
+            draftTime = timeSync.getSyncDrift();
+        }
+    } else if (100 < diff) {
+        LOGE("pts = %ld, draft = %ld, sync video drop.", ptsTime, draftTime);
+        return;
+    }
+
     int width = frame->width, height = frame->height;
-    //frame->format
-    //AVPixelFormat::AV_PIX_FMT_YUV420P
     unsigned char* y = new unsigned char[width * height];
     unsigned char* u = new unsigned char[width * height / 4];
     unsigned char* v = new unsigned char[width * height / 4];
@@ -317,10 +345,8 @@ void FFCodecHandler::handleVideoFrame(AVFrame *frame) {
     videoRender.render();
 }
 
-
-
-
-
-
-
-
+void FFCodecHandler::handleAudioFrame(AVFrame *frame) {
+    if (!frame) return;
+    audioSpeaker.start();
+    audioSpeaker.convertPCM(frame);
+}

@@ -3,12 +3,11 @@ package com.example.ndkpractice
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
-import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
-import android.view.SurfaceHolder
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.example.ndkpractice.core.FFPlayer
@@ -18,13 +17,8 @@ private const val TAG = "MainPlayerTag"
 
 class MainActivity : AppCompatActivity() {
 
-    private val player by lazy {
-        FFPlayer()
-    }
+    private var player: FFPlayer? = null
 
-    private val glSurfaceView by lazy {
-        GLSurfaceView(this)
-    }
 
     private val binding by lazy {
         ActivityMainBinding.inflate(layoutInflater)
@@ -36,54 +30,50 @@ class MainActivity : AppCompatActivity() {
 
         Log.i(TAG, "onCreate: ")
 
-        binding.sv.holder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: SurfaceHolder) {
-                player.setDisplaySurface(holder.surface)
-                Log.i(TAG, "surfaceCreated: ")
-
-            }
-
-            override fun surfaceChanged(
-                holder: SurfaceHolder,
-                format: Int,
-                width: Int,
-                height: Int
-            ) {
-                Log.i(TAG, "surfaceChanged: ")
-                player.resizeDisplaySurface(width, height)
-            }
-
-            override fun surfaceDestroyed(holder: SurfaceHolder) {
-                player.removeDisplaySurface()
-                Log.i(TAG, "surfaceDestroyed: ")
-            }
-        })
-
         supportActionBar?.apply {
             setDisplayShowCustomEnabled(true)
             setDisplayShowTitleEnabled(false)
             setCustomView(R.layout.layout_action_bar)
 
-            this.customView.findViewById<View>(R.id.btn).setOnClickListener {
+            this.customView.findViewById<View>(R.id.btn1).setOnClickListener {
                 val intent = Intent(Intent.ACTION_PICK)
                 intent.type = "video/*"
                 startActivityForResult(intent, 1024)
             }
-        }
 
-        player.testThread()
+            this.customView.findViewById<View>(R.id.btn2).setOnClickListener {
+                player?.apply {
+                    releaseSurface()
+                    stop()
+                    release()
+                }
+            }
+        }
         //onFetchUrl("/storage/emulated/0/Pictures/WeiXin/wx_camera_1731658601272.mp4")
 
         if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 1025)
         }
+        //FFPlayer()
     }
 
     private fun onFetchUrl(url: String) {
-        player.release()
-        player.setUrl(url)
-        player.prepare()
-        player.start()
+        player?.apply {
+            releaseSurface()
+            stop()
+            release()
+        }
+        FFPlayer().apply {
+            //
+            //setUrl("http://demo-videos.qnsdk.com/only-video-1080p-60fps.m4s")
+            //setUrl("rtmp://liteavapp.qcloud.com/live/liteavdemoplayerstreamid")
+            Log.i(TAG, "onFetchUrl: $url")
+            setUrl(url)
+            prepare()
+            start()
+            setSurfaceView(binding.sv)
+            player = this
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -120,8 +110,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        player.release()
+        player?.releaseSurface()
+        player?.release()
     }
 
+    init {
+        val mediaPlayer = MediaPlayer()
+        mediaPlayer.start()
+    }
 
 }
