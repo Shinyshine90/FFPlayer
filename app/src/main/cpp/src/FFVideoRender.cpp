@@ -10,6 +10,7 @@ FFVideoRender::FFVideoRender() {
 
 FFVideoRender::~FFVideoRender() {
     LOGI("FFVideoRender destructor.");
+
     std::mutex m;
     std::condition_variable condition;
     eglThread.clear();
