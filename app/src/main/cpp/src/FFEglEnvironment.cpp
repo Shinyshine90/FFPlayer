@@ -2,6 +2,7 @@
 
 #include "FFLog.h"
 #include <condition_variable>
+#define TAG "FFEglEnvironment"
 
 FFEglEnvironment::FFEglEnvironment() {
 
@@ -15,17 +16,17 @@ void FFEglEnvironment::init() {
     eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     // 1. 创建 EGL
     if (eglDisplay == EGL_NO_DISPLAY) {
-        LOGE("FFEglEnvironment create display failed.");
+        LOGE(TAG, "FFEglEnvironment create display failed.");
         return;
     }
 
     // 2. 初始化 EGL
     EGLint major, minor;
     if (!eglInitialize(eglDisplay, &major, &minor)) {
-        LOGE("FFEglEnvironment initialize display failed.");
+        LOGE(TAG, "FFEglEnvironment initialize display failed.");
         return;
     }
-    LOGI("FFEglEnvironment init egl success, %d, %d", major, minor);
+    LOGI(TAG, "FFEglEnvironment init egl success, %d, %d", major, minor);
 
     // 3. 配置 EGL
     EGLint configAttribs[] = {
@@ -42,7 +43,7 @@ void FFEglEnvironment::init() {
     EGLint numConfigs;
     if (!eglChooseConfig(eglDisplay, configAttribs,
                          &eglConfig, 1, &numConfigs)) {
-        LOGE("FFEglEnvironment config display failed.");
+        LOGE(TAG, "FFEglEnvironment config display failed.");
         return;
     }
 
@@ -53,15 +54,15 @@ void FFEglEnvironment::init() {
     eglContext = eglCreateContext(eglDisplay, eglConfig,
                                   EGL_NO_CONTEXT, contextAttribs);
     if (eglContext == EGL_NO_CONTEXT) {
-        LOGE("FFEglEnvironment create context failed.");
+        LOGE(TAG, "FFEglEnvironment create context failed.");
         return;
     }
     makeCurrentDisplay();
-    LOGI("FFEglEnvironment init complete.");
+    LOGI(TAG, "FFEglEnvironment init complete.");
 }
 
 void FFEglEnvironment::setPreviewWindow(ANativeWindow *nativeWindow) {
-    LOGI("FFEglEnvironment setPreviewWindow, this = %p, current = %p, new = %p.", this, currentWindow, nativeWindow);
+    LOGI(TAG, "FFEglEnvironment setPreviewWindow, this = %p, current = %p, new = %p.", this, currentWindow, nativeWindow);
     if (currentWindow == nativeWindow) {
         return;
     }
@@ -70,19 +71,19 @@ void FFEglEnvironment::setPreviewWindow(ANativeWindow *nativeWindow) {
     eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, eglContext);
     eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, nativeWindow, nullptr);
     if (eglSurface == EGL_NO_SURFACE) {
-        LOGE("FFEglEnvironment createEglSurface failed.");
+        LOGE(TAG, "FFEglEnvironment createEglSurface failed.");
     } else {
         eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
-        LOGE("FFEglEnvironment createEglSurface success.");
+        LOGE(TAG, "FFEglEnvironment createEglSurface success.");
     }
 }
 
 void FFEglEnvironment::removePreviewWindow() {
-    LOGI("FFEglEnvironment removePreviewWindow.");
+    LOGI(TAG, "FFEglEnvironment removePreviewWindow.");
     eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, eglContext);
     if (eglSurface != EGL_NO_SURFACE) {
         if (!eglDestroySurface(eglDisplay, eglSurface)) {
-            LOGE("FFEglEnvironment removePreviewWindow failed.");
+            LOGE(TAG, "FFEglEnvironment removePreviewWindow failed.");
         }
     }
     eglSurface = EGL_NO_SURFACE;
@@ -103,7 +104,7 @@ void FFEglEnvironment::swapBuffer() {
     if (eglSurface != EGL_NO_SURFACE) {
         eglSwapBuffers(eglDisplay, eglSurface);
     } else {
-        LOGE("FFEglEnvironment swap buffer on no surface.");
+        LOGE(TAG, "FFEglEnvironment swap buffer on no surface.");
     }
 }
 

@@ -1,16 +1,12 @@
-//
-// Created by Shadowalker on 2024/11/22.
-//
-
 #ifndef NDKPRACTICE_FFOPENSLAUDIOPLAY_H
 #define NDKPRACTICE_FFOPENSLAUDIOPLAY_H
-
 
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 #include <cstring>
 #include <iostream>
 #include <thread>
+#include <atomic>
 
 #include "FFMediaQueue.h"
 
@@ -30,30 +26,31 @@ enum class AudioPlayStatus {
     IDLE,
     PLAYING,
     PAUSE,
-    STOP
+    STOP,
+    RELEASE
 };
 
 class FFOpenSLAudioPlay {
 private:
+    std::queue<FFPcmData*> buffers;
     // OpenSL ES 对象
     SLObjectItf engineObject = nullptr;
+
     SLEngineItf engineEngine = nullptr;
 
     SLObjectItf outputMixObject = nullptr;
+
     SLObjectItf playerObject = nullptr;
 
     SLPlayItf playerPlay = nullptr;
+
     SLAndroidSimpleBufferQueueItf bufferQueue = nullptr;
 
-    AudioPlayStatus status = AudioPlayStatus::IDLE;
-
-    std::thread thread;
+    std::atomic<AudioPlayStatus> status{AudioPlayStatus::IDLE};
 
     std::mutex mutex;
 
-    std::condition_variable condition;
-
-    FFMediaQueue<FFPcmData*> pcmQueue {100};
+    FFMediaQueue<FFPcmData*> pcmQueue;
 
     // PCM 数据回调（静态方法以适配 OpenSL 回调机制）
     static void bufferCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
@@ -73,6 +70,8 @@ public:
     // 初始化播放器
     bool initialize();
 
+    bool isPcmQueueOverflow();
+
     void enqueuePcmData(FFPcmData* data);
 
     bool isStart();
@@ -85,11 +84,8 @@ public:
     // 停止播放
     void stop();
 
-    void run();
-
     // 释放资源
     void release();
-
 
 };
 #endif

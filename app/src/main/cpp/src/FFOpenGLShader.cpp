@@ -2,6 +2,8 @@
 #include "FFOpenGLShader.h"
 #include "FFLog.h"
 
+#define TAG "FFOpenGLShader"
+
 #define GET_STR(str) #str
 
 const char *vertex_shader = GET_STR(
@@ -58,7 +60,7 @@ FFOpenGLShader::~FFOpenGLShader() {
 GLint initProgram(GLint vertexShader, GLint fragmentShader) {
     GLuint program = glCreateProgram();
     if (program == 0) {
-        LOGE("create program failed.");
+        LOGE(TAG, "create program failed.");
         return 0;
     }
     glAttachShader(program, vertexShader);
@@ -68,18 +70,18 @@ GLint initProgram(GLint vertexShader, GLint fragmentShader) {
     GLint status;
     glGetProgramiv(program, GL_LINK_STATUS, &status);
     if (status != GL_TRUE) {
-        LOGE("link program failed.");
+        LOGE(TAG, "link program failed.");
         glDeleteProgram(program);
         return 0;
     }
-    LOGI("FFOpenGLShader init program success.");
+    LOGI(TAG, "FFOpenGLShader init program success.");
     return program;
 }
 
 GLuint initShader(const char *source, GLint type) {
     GLuint shader = glCreateShader(type);
     if (shader == 0) {
-        LOGE("create shader failed, %d", shader);
+        LOGE(TAG, "create shader failed, %d", shader);
         return 0;
     }
     glShaderSource(shader, 1, &source, 0);
@@ -87,11 +89,11 @@ GLuint initShader(const char *source, GLint type) {
     GLint compileStatus;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus);
     if (compileStatus == GL_FALSE) {
-        LOGE("compile shader failed, %s.", source);
+        LOGE(TAG, "compile shader failed, %s.", source);
         glDeleteShader(shader);
         return 0;
     }
-    LOGI("FFOpenGLShader init shader success.");
+    LOGI(TAG, "FFOpenGLShader init shader success.");
     return shader;
 }
 
@@ -101,7 +103,7 @@ void genTexture(unsigned int* textures, int index, int width, int height) {
     }
     GLuint texture;
     glGenTextures(1, &texture);
-    LOGI("gen texture index %d texture %d", index, texture);
+    LOGI(TAG, "gen texture index %d texture %d", index, texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -110,7 +112,7 @@ void genTexture(unsigned int* textures, int index, int width, int height) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
                  GL_LUMINANCE, GL_UNSIGNED_BYTE,nullptr);
     textures[index] = texture;
-    LOGI("FFOpenGLShader gen texture success.");
+    LOGI(TAG, "FFOpenGLShader gen texture success.");
 }
 
 void setupVertexData(GLint glProgram) {
@@ -146,7 +148,7 @@ void FFOpenGLShader::init() {
     vertexShader = initShader(vertex_shader, GL_VERTEX_SHADER);
     fragmentShader = initShader(fragment_shader_yuv420p, GL_FRAGMENT_SHADER);
     program = initProgram(vertexShader, fragmentShader);
-    LOGE("FFOpenGLShader create gl program , %d.", program);
+    LOGE(TAG, "FFOpenGLShader create gl program , %d.", program);
     glUseProgram(program);
     setupVertexData(program);
     setupTextureUniform(program);

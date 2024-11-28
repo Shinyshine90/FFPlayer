@@ -53,13 +53,10 @@ public:
     }
 
     virtual ~FFThread() {
-        LOGI("FFThread destructor.");
         stop();
-        LOGI("FFThread destructor stop.");
         if (thread.joinable()) {
             thread.join();
         }
-        LOGI("FFThread destructor finish.");
     }
 
     void post(std::function<void()> runnable) {

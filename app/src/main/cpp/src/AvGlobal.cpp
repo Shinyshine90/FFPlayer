@@ -6,7 +6,7 @@ namespace AvGlobal {
     void printAllDecoder() {
         const AVCodec *codec = NULL;
         // 遍历所有解码器
-        LOGI("Supported Decoders:\n");
+        LOGI("AvGlobal", "Supported Decoders:\n");
         while ((codec = av_codec_next(codec)) != NULL) {
             if (av_codec_is_decoder(codec)) { // 仅列出解码器
                 LOGI("Decoder: %s, Type: %s\n",codec->name,
@@ -40,5 +40,12 @@ namespace AvGlobal {
                 break;
         }
         __android_log_vprint(android_log_level, "FFMPEG", fmt, vl);
+    }
+
+    void freeAvPacket(AVPacket* packet) {
+        if (packet) {
+            av_packet_unref(packet);
+            av_packet_free(&packet);
+        }
     }
 }

@@ -1,5 +1,8 @@
 #include "FFVideoRender.h"
 #include <EGL/egl.h>
+#include <queue>
+
+#define TAG "FFVideoRender"
 
 FFVideoRender::FFVideoRender() {
     post([this]{
@@ -9,8 +12,7 @@ FFVideoRender::FFVideoRender() {
 }
 
 FFVideoRender::~FFVideoRender() {
-    LOGI("FFVideoRender destructor.");
-
+    LOGI(TAG, "FFVideoRender destructor.");
     std::mutex m;
     std::condition_variable condition;
     eglThread.clear();
@@ -23,7 +25,7 @@ FFVideoRender::~FFVideoRender() {
     condition.wait_for(l, std::chrono::milliseconds(200), []{
         return true;
     });
-    LOGI("FFVideoRender destructor complete.");
+    LOGI(TAG, "FFVideoRender destructor complete.");
 }
 
 void FFVideoRender::setDisplayWindow(ANativeWindow *nativeWindow) {

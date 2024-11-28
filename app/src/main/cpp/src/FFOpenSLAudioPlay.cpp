@@ -3,6 +3,8 @@
 
 #include <thread>
 
+#define TAG "FFOpenSLAudioPlay"
+
 FFOpenSLAudioPlay::FFOpenSLAudioPlay() {
     initialize();
 }
@@ -19,25 +21,34 @@ void FFOpenSLAudioPlay::bufferCallback(SLAndroidSimpleBufferQueueItf bq, void *c
 
 // 将 PCM 数据填充到缓冲区
 void FFOpenSLAudioPlay::enqueueBuffer() {
+    LOGI(TAG, "FFOpenSLAudioPlay enqueueBuffer buffers size %ld.", buffers.size());
+    if (!buffers.empty()) {
+        freePcmData(buffers.front());
+        buffers.pop();
+    }
     // 此处用静音数据填充缓冲区，实际使用时填入有效 PCM 数据
-    LOGI("FFOpenSLAudioPlay queue size = %ld, thread id = %p.", pcmQueue.size(), std::this_thread::get_id());
-    while (engineObject && pcmQueue.isEmpty()) {
-        LOGW("FFOpenSLAudioPlay sleep for data.");
+    while (status.load() < AudioPlayStatus::RELEASE && pcmQueue.isEmpty()) {
+        LOGW(TAG, "FFOpenSLAudioPlay sleep for data.");
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    if (engineObject) {
+
+    if (status.load() < AudioPlayStatus::RELEASE) {
         FFPcmData* pcm = pcmQueue.dequeue();
-        (*bufferQueue)->Enqueue(bufferQueue, pcm->data, pcm->size);
-        freePcmData(pcm);
+        LOGI(TAG, "FFOpenSLAudioPlay, enqueueBuffer size %ld, bufferLeft %ld", pcm->size, pcmQueue.size());
+        SLresult ret = (*bufferQueue)->Enqueue(bufferQueue, pcm->data, pcm->size);
+        buffers.push(pcm);
+        if (ret) {
+            LOGE(TAG, "FFOpenSLAudioPlay, enqueueBuffer failed, ret = %d.", ret);
+        }
     }
 }
 
 // 初始化播放器
 bool FFOpenSLAudioPlay::initialize() {
-    LOGI("FFOpenSLAudioPlay init prev thread id = %p.", std::this_thread::get_id());
+    LOGI(TAG, "FFOpenSLAudioPlay init prev thread id = %p.", std::this_thread::get_id());
     // 创建引擎
     if (slCreateEngine(&engineObject, 0, nullptr, 0, nullptr, nullptr) != SL_RESULT_SUCCESS) {
-        LOGE("Failed to create OpenSL engine.");
+        LOGE(TAG, "Failed to create OpenSL engine.");
         return false;
     }
     (*engineObject)->Realize(engineObject, SL_BOOLEAN_FALSE);
@@ -48,7 +59,7 @@ bool FFOpenSLAudioPlay::initialize() {
     SLboolean outputMixItfReq[1] = {SL_BOOLEAN_FALSE}; // FALSE：该接口不支持，也不影响对象的初始化流程；TRUE：接口不支持，会导致初始化失败
 
     if ((*engineEngine)->CreateOutputMix(engineEngine, &outputMixObject, 1, outputMixItfIds, outputMixItfReq) != SL_RESULT_SUCCESS) {
-        LOGE("Failed to create output mix.");
+        LOGE(TAG, "Failed to create output mix.");
         return false;
     }
     (*outputMixObject)->Realize(outputMixObject, SL_BOOLEAN_FALSE);
@@ -76,7 +87,7 @@ bool FFOpenSLAudioPlay::initialize() {
     const SLInterfaceID ids[] = {SL_IID_BUFFERQUEUE};
     const SLboolean req[] = {SL_BOOLEAN_TRUE};
     if ((*engineEngine)->CreateAudioPlayer(engineEngine, &playerObject, &audioSrc, &audioSink, 1, ids, req) != SL_RESULT_SUCCESS) {
-        LOGE("Failed to create audio player.");
+        LOGE(TAG, "Failed to create audio player.");
         return false;
     }
     (*playerObject)->Realize(playerObject, SL_BOOLEAN_FALSE);
@@ -93,72 +104,45 @@ bool FFOpenSLAudioPlay::initialize() {
     return true;
 }
 
-void FFOpenSLAudioPlay::run() {
-    LOGI("FFOpenSLAudioPlay start thread id = %p.", std::this_thread::get_id());
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (playerPlay) {
-            (*playerPlay)->SetPlayState(playerPlay, SL_PLAYSTATE_PLAYING);
-            uint8_t silentBuffer[2] = {0};
-            (*bufferQueue)->Enqueue(bufferQueue, silentBuffer, sizeof(silentBuffer));
-        }
-    }
-
-    while (status < AudioPlayStatus::STOP) {
-        std::unique_lock<std::mutex> lock(mutex);
-        if (status == AudioPlayStatus::PAUSE) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            continue;
-        }
-        condition.wait(lock);
-        if (status == AudioPlayStatus::STOP) {
-            break;
-        }
-    }
-}
 
 // 启动播放
 void FFOpenSLAudioPlay::start() {
-    LOGI("FFOpenSLAudioPlay start prev thread id = %p.", std::this_thread::get_id());
+    LOGI(TAG, "FFOpenSLAudioPlay start prev thread id = %p.", std::this_thread::get_id());
     std::lock_guard<std::mutex> lock(mutex);
-    if (status == AudioPlayStatus::IDLE) {
-        status = AudioPlayStatus::PLAYING;
-        try {
-            thread = std::thread(&FFOpenSLAudioPlay::run, this);
-        } catch (const std::exception &e) {
-            LOGE("Thread creation failed: %s", e.what());
-            // 可以在此处捕获异常，并进行适当的资源清理
-        }
+    if (status.load() == AudioPlayStatus::IDLE) {
+        status.store(AudioPlayStatus::PLAYING);
+        (*playerPlay)->SetPlayState(playerPlay, SL_PLAYSTATE_PLAYING);
+        (*bufferQueue)->Enqueue(bufferQueue, "", 2);
     }
 }
 
 void FFOpenSLAudioPlay::pause() {
     std::lock_guard<std::mutex> lock(mutex);
-    if (status == AudioPlayStatus::PLAYING) {
-        status = AudioPlayStatus::PAUSE;
+    if (status.load() == AudioPlayStatus::PLAYING) {
+        status.store(AudioPlayStatus::PAUSE);
     }
 }
 
 // 停止播放
 void FFOpenSLAudioPlay::stop() {
     std::lock_guard<std::mutex> lock(mutex);
-    if (status == AudioPlayStatus::STOP) {
+    if (status.load() == AudioPlayStatus::STOP) {
         return;
     }
 
     if (playerPlay) {
         (*playerPlay)->SetPlayState(playerPlay, SL_PLAYSTATE_STOPPED);
     }
-    status = AudioPlayStatus::STOP;
-    condition.notify_one();
-    if (thread.joinable()) {
-        thread.join();
-    }
+    status.store(AudioPlayStatus::STOP);
 }
 
 // 释放资源
 void FFOpenSLAudioPlay::release() {
+    if  (status.load() == AudioPlayStatus::RELEASE) {
+        return;
+    }
     std::lock_guard<std::mutex> lock(mutex);
+    status.store(AudioPlayStatus::RELEASE);
     if (playerObject) {
         (*playerObject)->Destroy(playerObject);
         playerObject = nullptr;
@@ -177,6 +161,9 @@ void FFOpenSLAudioPlay::release() {
 }
 
 void FFOpenSLAudioPlay::enqueuePcmData(FFPcmData *data) {
+    while (pcmQueue.isOverflow()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     pcmQueue.enqueue(data);
 }
 
@@ -186,7 +173,11 @@ void FFOpenSLAudioPlay::freePcmData(FFPcmData *data) {
 
 bool FFOpenSLAudioPlay::isStart() {
     std::lock_guard<std::mutex> lock(mutex);
-    return status == AudioPlayStatus::PLAYING;
+    return status.load() == AudioPlayStatus::PLAYING;
+}
+
+bool FFOpenSLAudioPlay::isPcmQueueOverflow() {
+    return pcmQueue.isOverflow();
 }
 
 

@@ -3,7 +3,6 @@ package com.example.ndkpractice
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -29,6 +28,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         Log.i(TAG, "onCreate: ")
+        FFPlayer()
 
         supportActionBar?.apply {
             setDisplayShowCustomEnabled(true)
@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity() {
 
             this.customView.findViewById<View>(R.id.btn2).setOnClickListener {
                 player?.apply {
-                    releaseSurface()
+                    removeDisplay()
                     stop()
                     release()
                 }
@@ -54,12 +54,11 @@ class MainActivity : AppCompatActivity() {
         if(checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 1025)
         }
-        //FFPlayer()
     }
 
     private fun onFetchUrl(url: String) {
         player?.apply {
-            releaseSurface()
+            removeDisplay()
             stop()
             release()
         }
@@ -68,10 +67,10 @@ class MainActivity : AppCompatActivity() {
             //setUrl("http://demo-videos.qnsdk.com/only-video-1080p-60fps.m4s")
             //setUrl("rtmp://liteavapp.qcloud.com/live/liteavdemoplayerstreamid")
             Log.i(TAG, "onFetchUrl: $url")
-            setUrl(url)
+            setDataSource(url)
             prepare()
             start()
-            setSurfaceView(binding.sv)
+            setDisplay(binding.sv)
             player = this
         }
     }
@@ -100,7 +99,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Log.i(TAG, "onResume: ${binding.sv.holder.surface.isValid}")
-        //player.setDisplaySurface(binding.sv.holder.surface)
     }
 
     override fun onPause() {
@@ -110,13 +108,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        player?.releaseSurface()
+        player?.removeDisplay()
         player?.release()
-    }
-
-    init {
-        val mediaPlayer = MediaPlayer()
-        mediaPlayer.start()
     }
 
 }

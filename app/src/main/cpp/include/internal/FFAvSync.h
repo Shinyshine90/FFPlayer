@@ -2,10 +2,10 @@
 #define NDKPRACTICE_FFAVSYNC_H
 
 #include <mutex>
+
 extern "C" {
 #include <libavutil/time.h>
 }
-
 
 class FFAvSync {
 private:
@@ -42,6 +42,4 @@ public:
         return nowMs() - startStamp - pausedTime;
     }
 };
-
-
 #endif

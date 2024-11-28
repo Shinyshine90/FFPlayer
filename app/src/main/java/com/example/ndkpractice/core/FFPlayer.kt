@@ -1,8 +1,6 @@
 package com.example.ndkpractice.core
 
-import android.util.Log
 import android.view.Surface
-import android.view.SurfaceHolder
 import android.view.SurfaceView
 
 private const val TAG = "FFPlayer"
@@ -11,58 +9,86 @@ class FFPlayer {
 
     private var nativeHandle: Long = 0L
 
-    private var surfaceView : SurfaceView? = null
+    private var display: ISurfaceDisplay? = null
 
-    private val surfaceCallback = object : SurfaceHolder.Callback {
-        override fun surfaceCreated(holder: SurfaceHolder) {
-            setDisplaySurface(holder.surface)
+    private val surfaceCallback = object :  ISurfaceCallback {
+        override fun onSurfaceCreated(surface: Surface) {
+            _setDisplaySurface(surface)
         }
 
-        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-            resizeDisplaySurface(width, height)
+        override fun onSurfaceChanged(surface: Surface, format: Int, width: Int, height: Int) {
+            _resizeDisplaySurface(width, height)
         }
 
-        override fun surfaceDestroyed(holder: SurfaceHolder) {
-            removeDisplaySurface()
-        }
-    }
-
-    fun setSurfaceView(surfaceView: SurfaceView) {
-        surfaceView.holder.addCallback(surfaceCallback)
-        if (surfaceView.holder.surface.isValid) {
-            setDisplaySurface(surfaceView.holder.surface)
+        override fun onSurfaceDestroyed(surface: Surface) {
+            _removeDisplaySurface()
         }
     }
 
-    fun releaseSurface() {
-        val surfaceView = this.surfaceView ?: return
-        this.surfaceView = null
-        surfaceView.holder.removeCallback(surfaceCallback)
+    fun setDataSource(uri: String) {
+        _setDataSource(uri)
     }
 
-    private external fun initGlobal()
+    fun setDisplay(surfaceView: SurfaceView) {
+        display?.unregisterCallback()
+        SurfaceViewDisplay(surfaceView).apply {
+            this.registerCallback(surfaceCallback)
+            this@FFPlayer.display = this
+        }
+    }
 
-    private external fun setupNative()
+    fun removeDisplay() {
+        display?.unregisterCallback()
+        display = null
+    }
 
-    external fun setUrl(path: String)
+    fun prepare() {
+        _prepare()
+    }
 
-    external fun prepare()
+    fun start() {
+        _start()
+    }
 
-    external fun start()
+    fun pause() {
+        _pause()
+    }
 
-    external fun pause()
+    fun stop() {
+        _stop()
+    }
 
-    external fun stop()
+    fun seek(percent: Float) {
+        _seek(percent)
+    }
 
-    external fun seek(float: Float)
+    fun release() {
+        _release()
+    }
 
-    external fun setDisplaySurface(surface: Surface)
+    private external fun _initGlobal()
 
-    external fun removeDisplaySurface()
+    private external fun _setupNative()
 
-    external fun resizeDisplaySurface(w: Int, h: Int)
+    external fun _setDisplaySurface(surface: Surface)
 
-    external fun release()
+    external fun _removeDisplaySurface()
+
+    external fun _setDataSource(path: String)
+
+    external fun _prepare()
+
+    external fun _start()
+
+    external fun _pause()
+
+    external fun _stop()
+
+    external fun _seek(float: Float)
+
+    external fun _resizeDisplaySurface(w: Int, h: Int)
+
+    external fun _release()
 
     companion object {
         init {
@@ -73,9 +99,8 @@ class FFPlayer {
     }
 
     init {
-        initGlobal()
-        setupNative()
-        Log.i(TAG, "nativeHandle: $nativeHandle.")
+        _initGlobal()
+        _setupNative()
     }
 
 }

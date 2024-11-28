@@ -3,13 +3,12 @@
 
 #include <android/asset_manager_jni.h>
 #include <android/native_window_jni.h>
-#include <unordered_map>
 #include <memory>
 #include <functional>
 
 #include "FFLog.h"
 #include "FFThread.h"
-#include "FFCodecHandler.h"
+#include "FFPlayer.h"
 #include "FFEglEnvironment.h"
 #include "FFVideoRender.h"
 #include "PcmTest.h"
@@ -18,19 +17,24 @@ extern "C" {
 #include "libavcodec/jni.h"
 }
 
-FFCodecHandler* getFFCodecHandler(JNIEnv *env, jobject invoker) {
+#define TAG "native-lib"
+
+std::mutex actionMutex;
+
+FFPlayer* getFFCodecHandler(JNIEnv *env, jobject invoker) {
     jclass clz = env->GetObjectClass(invoker);
     jfieldID fieldId = env->GetFieldID(clz, "nativeHandle", "J");
     jlong handle = env->GetLongField(invoker, fieldId);
-    return reinterpret_cast<FFCodecHandler*>(handle);
+    return reinterpret_cast<FFPlayer*>(handle);
 }
 
-void performAction(JNIEnv *env, jobject invoker, const char* action, std::function<void(FFCodecHandler*)> run) {
-    FFCodecHandler* handler = getFFCodecHandler(env, invoker);
+void performAction(JNIEnv *env, jobject invoker, const char* action, std::function<void(FFPlayer*)> run) {
+    std::lock_guard<std::mutex> lock(actionMutex);
+    FFPlayer* handler = getFFCodecHandler(env, invoker);
     if (handler) {
         run(handler);
     } else {
-        LOGE("jni perform %s failed, player released already.", action);
+        LOGE(TAG, "jni perform %s failed, player released already.", action);
     }
 }
 
@@ -38,19 +42,18 @@ void initGlobal(JNIEnv *env, jobject invoker) {
     av_register_all();
     avformat_network_init();
 
-    //sdcard/out.pcm
-    //testPcm();
+    testDemux();
 }
 
 void setupNative(JNIEnv *env, jobject invoker) {
-    FFCodecHandler* player = new FFCodecHandler();
+    FFPlayer* player = new FFPlayer();
     jclass clz = env->GetObjectClass(invoker);
     jfieldID fieldId = env->GetFieldID(clz, "nativeHandle", "J");
     env->SetLongField(invoker, fieldId, reinterpret_cast<long>(player));
 }
 
 void setUrl(JNIEnv *env, jobject invoker, jstring url) {
-    performAction(env, invoker, "setUrl", [&](FFCodecHandler* handler){
+    performAction(env, invoker, "setUrl", [&](FFPlayer* handler){
         const char *path = env->GetStringUTFChars(url, JNI_FALSE);
         handler->SetMediaPath(path);
         env->ReleaseStringUTFChars(url, path);
@@ -58,56 +61,56 @@ void setUrl(JNIEnv *env, jobject invoker, jstring url) {
 }
 
 void prepare(JNIEnv *env, jobject invoker) {
-    performAction(env, invoker, "prepare", [](FFCodecHandler* handler){
+    performAction(env, invoker, "prepare", [](FFPlayer* handler){
         handler->InitCodec();
     });
 }
 
 void start(JNIEnv *env, jobject invoker) {
-    performAction(env, invoker, "start", [](FFCodecHandler* handler){
+    performAction(env, invoker, "start", [](FFPlayer* handler){
         handler->StartPlayVideo();
     });
 }
 
 void pause(JNIEnv *env, jobject invoker) {
-    performAction(env, invoker, "start", [](FFCodecHandler* handler){
+    performAction(env, invoker, "start", [](FFPlayer* handler){
         handler->PausePlayVideo();
     });
 }
 
 void stop(JNIEnv *env, jobject invoker) {
-    performAction(env, invoker, "stop", [](FFCodecHandler* handler){
+    performAction(env, invoker, "stop", [](FFPlayer* handler){
         handler->StopPlayVideo();
     });
 }
 
 void seek(JNIEnv *env, jobject invoker, jfloat percent) {
-    performAction(env, invoker, "seek", [percent](FFCodecHandler* handler){
+    performAction(env, invoker, "seek", [percent](FFPlayer* handler){
         handler->Seek(percent);
     });
 }
 
 void setDisplaySurface(JNIEnv *env, jobject invoker, jobject surface) {
-    performAction(env, invoker, "setDisplaySurface", [&](FFCodecHandler* handler){
+    performAction(env, invoker, "setDisplaySurface", [&](FFPlayer* handler){
         ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
         handler->videoRender.setDisplayWindow(window);
     });
 }
 
 void removeDisplaySurface(JNIEnv *env, jobject invoker) {
-    performAction(env, invoker, "removeDisplaySurface", [](FFCodecHandler* handler){
+    performAction(env, invoker, "removeDisplaySurface", [](FFPlayer* handler){
         handler->videoRender.removeDisplayWindow();
     });
 }
 
 void resizeDisplaySurface(JNIEnv *env, jobject invoker, int w, int h) {
-    performAction(env, invoker, "removeDisplaySurface", [w, h](FFCodecHandler* handler){
+    performAction(env, invoker, "removeDisplaySurface", [w, h](FFPlayer* handler){
         handler->videoRender.resizeDisplayWindow(w, h);
     });
 }
 
 void release(JNIEnv *env, jobject invoker) {
-    performAction(env, invoker, "removeDisplaySurface", [&](FFCodecHandler* handler){
+    performAction(env, invoker, "removeDisplaySurface", [&](FFPlayer* handler){
         handler->UnInitCodec();
         delete handler;
 
@@ -118,18 +121,18 @@ void release(JNIEnv *env, jobject invoker) {
 }
 
 static JNINativeMethod methods[] = {
-        {"initGlobal",           "()V",                                   (void *) initGlobal},
-        {"setupNative",           "()V",                                   (void *) setupNative},
-        {"prepare",              "()V",                                   (void *) prepare},
-        {"release",              "()V",                                   (void *) release},
-        {"setUrl",               "(Ljava/lang/String;)V",                 (void *) setUrl},
-        {"start",                "()V",                                   (void *) start},
-        {"pause",                "()V",                                   (void *) pause},
-        {"stop",                 "()V",                                   (void *) stop},
-        {"seek",                 "(F)V",                                  (void *) seek},
-        {"setDisplaySurface",    "(Landroid/view/Surface;)V",             (void *) setDisplaySurface},
-        {"removeDisplaySurface", "()V",                                   (void *) removeDisplaySurface},
-        {"resizeDisplaySurface", "(II)V",                                 (void *) resizeDisplaySurface},
+        {"_initGlobal",           "()V",                                   (void *) initGlobal},
+        {"_setupNative",           "()V",                                   (void *) setupNative},
+        {"_prepare",              "()V",                                   (void *) prepare},
+        {"_release",              "()V",                                   (void *) release},
+        {"_setDataSource",               "(Ljava/lang/String;)V",                 (void *) setUrl},
+        {"_start",                "()V",                                   (void *) start},
+        {"_pause",                "()V",                                   (void *) pause},
+        {"_stop",                 "()V",                                   (void *) stop},
+        {"_seek",                 "(F)V",                                  (void *) seek},
+        {"_setDisplaySurface",    "(Landroid/view/Surface;)V",             (void *) setDisplaySurface},
+        {"_removeDisplaySurface", "()V",                                   (void *) removeDisplaySurface},
+        {"_resizeDisplaySurface", "(II)V",                                 (void *) resizeDisplaySurface},
 };
 
 jint JNI_OnLoad(JavaVM *vm, void *reserved) {

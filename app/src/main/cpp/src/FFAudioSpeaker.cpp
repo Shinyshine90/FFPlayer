@@ -1,5 +1,7 @@
 #include "FFAudioSpeaker.h"
 #include "FFLog.h"
+#define TAG "AVSampleFormat"
+
 typedef AVSampleFormat format;
 
 FFAudioSpeaker::FFAudioSpeaker() {
@@ -21,8 +23,8 @@ void FFAudioSpeaker::init(int inSampleRate, AVSampleFormat inSampleFormat, int64
     this->outSampleFormat = outSampleFormat;
     this->outChannelLayout = outChannelLayout;
 
-    LOGI("FFAudioSpeaker create swr in sample, rate = %d, fmt = %d, channel = %ld.", inSampleRate, inSampleFormat, inChannelLayout);
-    LOGI("FFAudioSpeaker create swr out sample, rate = %d, fmt = %d, channel = %ld.", outSampleRate, outSampleFormat, outChannelLayout);
+    LOGI(TAG, "FFAudioSpeaker create swr in sample, rate = %d, fmt = %d, channel = %ld.", inSampleRate, inSampleFormat, inChannelLayout);
+    LOGI(TAG, "FFAudioSpeaker create swr out sample, rate = %d, fmt = %d, channel = %ld.", outSampleRate, outSampleFormat, outChannelLayout);
 
     swrCtx = swr_alloc_set_opts(nullptr,
                                 outChannelLayout, outSampleFormat,
@@ -31,17 +33,17 @@ void FFAudioSpeaker::init(int inSampleRate, AVSampleFormat inSampleFormat, int64
                                 0, nullptr);
 
     if (!swrCtx) {
-        LOGE("Swr context config failed.");
+        LOGE(TAG, "Swr context config failed.");
         return;
     }
 
     if (swr_init(swrCtx) < 0) {
-        LOGE("Swr context init failed.");
+        LOGE(TAG, "Swr context init failed.");
         swr_free(&swrCtx);
         return;
     }
 
-    LOGE("Swr context init success.");
+    LOGE(TAG, "Swr context init success.");
 }
 
 
@@ -54,11 +56,11 @@ void FFAudioSpeaker::start() {
 
 void FFAudioSpeaker::convertPCM(AVFrame *aFrame) {
     if (!swrCtx) {
-        LOGE("FFAudioSpeaker SwrContext is not initialized.");
+        LOGE(TAG, "FFAudioSpeaker SwrContext is not initialized.");
         return;
     }
 
-    LOGI("FFAudioSpeaker rate = %d, fmt = %d, channel = %ld, samples = %d", aFrame->sample_rate, aFrame->format, aFrame->channel_layout, aFrame->nb_samples);
+    LOGI(TAG, "FFAudioSpeaker rate = %d, fmt = %d, channel = %ld, samples = %d", aFrame->sample_rate, aFrame->format, aFrame->channel_layout, aFrame->nb_samples);
 
     // 计算输出样本数（考虑重采样的延迟）
     int output_nb_samples = 1024;
@@ -89,7 +91,7 @@ void FFAudioSpeaker::convertPCM(AVFrame *aFrame) {
             (const uint8_t **)aFrame->data, // 输入缓冲区
             aFrame->nb_samples);  // 输入样本数
     if (ret < 0) {
-        LOGE("FFAudioSpeaker Error while resampling: %s\n", av_err2str(ret));
+        LOGE(TAG, "FFAudioSpeaker Error while resampling: %s\n", av_err2str(ret));
         av_freep(&output_data[0]);
         av_freep(&output_data);
         return;
@@ -100,7 +102,7 @@ void FFAudioSpeaker::convertPCM(AVFrame *aFrame) {
     // 获取实际输出样本数
     int converted_samples = ret;
     int expectSize = converted_samples * 2 * 2;
-    LOGI("FFAudioSpeaker resample complete samples %d, expected size = %d, calSize = %d.",  converted_samples, expectSize, calSize);
+    LOGI(TAG, "FFAudioSpeaker resample complete samples %d, expected size = %d, calSize = %d.",  converted_samples, expectSize, calSize);
 
     uint8_t *pcmBuffer = new uint8_t[expectSize];
     memcpy(pcmBuffer, output_data[0], expectSize);

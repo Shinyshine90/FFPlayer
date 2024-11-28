@@ -3,7 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
 
     <application
@@ -18,6 +20,7 @@
         android:theme="@style/Theme.NdkPractice"
         tools:targetApi="31"
         android:name=".App">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

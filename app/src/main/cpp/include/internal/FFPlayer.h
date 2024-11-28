@@ -1,5 +1,5 @@
-#ifndef NDKPRACTICE_FFCODECHANDLER_H
-#define NDKPRACTICE_FFCODECHANDLER_H
+#ifndef NDKPRACTICE_FFPLAYER_H
+#define NDKPRACTICE_FFPLAYER_H
 
 #include <string>
 #include "FFMediaQueue.h"
@@ -12,11 +12,6 @@ extern "C" {
 #include "libavutil/avutil.h"
 }
 
-enum FFMediaType {
-    VIDEO = 0,
-    AUDIO
-};
-
 enum FFPlayStatus {
     STATUS_INIT = 0,
     STATUS_PREPARE,
@@ -27,7 +22,7 @@ enum FFPlayStatus {
     STATUS_RELEASE
 };
 
-class FFCodecHandler {
+class FFPlayer {
 
 private:
 const int MAX_VIDEO_PACKET_BUFFER = 200;
@@ -90,9 +85,9 @@ public:
 
     FFAudioSpeaker audioSpeaker;
 
-    FFCodecHandler();
+    FFPlayer();
 
-    ~FFCodecHandler();
+    ~FFPlayer();
 
     void SetMediaPath(const char* url);
 

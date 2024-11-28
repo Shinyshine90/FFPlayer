@@ -1,0 +1,9 @@
+#ifndef NDKPRACTICE_FFMEDIATYPE_H
+#define NDKPRACTICE_FFMEDIATYPE_H
+
+enum FFMediaType {
+    VIDEO = 0,
+    AUDIO
+};
+
+#endif //NDKPRACTICE_FFMEDIATYPE_H
